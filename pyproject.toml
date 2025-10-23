@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "databend-aiserver"
+version = "0.1.0"
+description = "Databend AI Server: bridge object storage and AI workloads via UDFs."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Databend Labs" }]
+dependencies = [
+    "databend-udf==0.2.7",
+    "opendal>=0.43.3",
+    "pypdf>=4.0.0",
+    "python-docx>=1.1.0",
+    "uvicorn>=0.29.0",
+    "huggingface-hub>=0.23.0",
+    "transformers>=4.44.0",
+    "torch>=2.3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.4.0"]
+
+[project.scripts]
+databend-aiserver = "databend_aiserver.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["databend_aiserver*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow and requiring Hugging Face model downloads",
+]

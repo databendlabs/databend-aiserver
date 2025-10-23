@@ -1,0 +1,62 @@
+# Copyright 2025 Databend Labs
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import pytest
+from databend_udf.client import UDFClient
+from databend_aiserver.udfs.embeddings import SUPPORTED_MODELS
+
+
+@pytest.mark.slow
+def test_vector_embedding_round_trip(running_server):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    result = client.call_function(
+        "aiserver_vector_embed_text_1024",
+        "qwen",
+        "embedded text",
+    )
+
+    assert len(result) == 1
+    payload = result[0]
+    assert isinstance(payload, list)
+    assert len(payload) == 1024
+
+
+@pytest.mark.slow
+def test_vector_embedding_batch_round_trip(running_server):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    result = client.call_function_batch(
+        "aiserver_vector_embed_text_1024",
+        model=["qwen", "qwen"],
+        text=["embedded text", "second row"],
+    )
+
+    assert len(result) == 2
+    for payload in result:
+        assert isinstance(payload, list)
+        assert len(payload) == 1024
+
+
+def test_vector_embedding_rejects_unknown_model(running_server):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    with pytest.raises(Exception) as exc:
+        client.call_function(
+            "aiserver_vector_embed_text_1024",
+            "unknown",
+            "text",
+        )
+
+    assert (
+        "Model 'unknown' is not supported. Supported values: "
+        "alias 'qwen' (model id 'Qwen/Qwen3-Embedding-0.6B')"
+    ) in str(exc.value)
