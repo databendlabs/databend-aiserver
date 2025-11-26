@@ -59,6 +59,7 @@ def test_parse_document_round_trip(running_server, memory_stage):
     result = client.call_function(
         "ai_parse_document",
         "multi.pdf",
+        2048,
         stage_locations=[build_stage_mapping(memory_stage)],
     )
 
@@ -101,6 +102,7 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     result = client.call_function(
         "ai_parse_document",
         "multi.docx",
+        2048,
         stage_locations=[build_stage_mapping(memory_stage)],
     )
 

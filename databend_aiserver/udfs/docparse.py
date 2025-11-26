@@ -29,10 +29,10 @@ try:  # pragma: no cover - optional in-memory path
     from docling.datamodel.document import DocumentStream
 except Exception:  # pragma: no cover
     DocumentStream = None  # type: ignore
+from docling.chunking import HybridChunker
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from transformers import AutoTokenizer
 from opendal import exceptions as opendal_exceptions
-from pypdf import PdfReader
-from docx import Document as DocxDocument
-from docx.oxml.ns import qn
 
 from databend_aiserver.stages.operator import (
     StageConfigurationError,
@@ -86,11 +86,11 @@ def _convert_to_markdown(data: bytes, suffix: str) -> ConversionResult:
 @udf(
     name="ai_parse_document",
     stage_refs=["stage"],
-    input_types=["STRING"],
+    input_types=["STRING", "INT"],
     result_type="VARIANT",
     io_threads=4,
 )
-def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
+def ai_parse_document(stage: StageLocation, path: str, chunk_size: Optional[int]) -> Dict[str, Any]:
     """Parse a document and return Snowflake-compatible layout output.
 
     Simplified semantics:
@@ -105,18 +105,30 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
         doc = result.document
         markdown = doc.export_to_markdown()
 
-        # Snowflake-compatible (page_split=true) shape:
-        # single element pages array (Docling does its own pagination internally;
-        # here we expose one element containing full markdown)
-        pages: List[str] = [markdown] if markdown else []
-        page_count = len(pages) if pages else None
+        # Docling chunking: chunk_size controls max_tokens; default chunker when not set.
+        if chunk_size and chunk_size > 0:
+            tokenizer = HuggingFaceTokenizer(
+                tokenizer=AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2"),
+                max_tokens=chunk_size,
+            )
+            chunker = HybridChunker(tokenizer=tokenizer)
+        else:
+            chunker = HybridChunker()
+
+        chunks = list(chunker.chunk(dl_doc=doc))
+        pages: List[Dict[str, Any]] = [
+            {"index": idx, "content": chunker.contextualize(chunk)}
+            for idx, chunk in enumerate(chunks)
+        ]
+        if not pages:
+            pages = [{"index": 0, "content": markdown}]
+
+        page_count = len(pages)
 
         # Snowflake-compatible (page_split=true) shape:
         # { "pages": [...], "metadata": {"pageCount": N}, "errorInformation": null }
         return {
-            "pages": [
-                {"index": idx, "content": content} for idx, content in enumerate(pages)
-            ],
+            "pages": pages,
             "metadata": {"pageCount": page_count},
             "errorInformation": None,
         }
