@@ -24,10 +24,12 @@ from docx import Document
 from docx.enum.text import WD_BREAK
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+PDF_SRC = DATA_DIR / "2206.01062.pdf"
+DOCX_SRC = DATA_DIR / "lorem_ipsum.docx"
 
 
 def _write_multipage_pdf(stage, filename: str = "multi.pdf"):
-    base = (DATA_DIR / "sample.pdf").read_bytes()
+    base = PDF_SRC.read_bytes()
     reader = PdfReader(io.BytesIO(base))
     writer = PdfWriter()
     for _ in range(2):
@@ -40,12 +42,9 @@ def _write_multipage_pdf(stage, filename: str = "multi.pdf"):
 
 
 def _write_multipage_docx(stage, filename: str = "multi.docx"):
-    doc = Document()
-    doc.add_heading("Page One", level=1)
-    doc.add_paragraph("Content of page one.")
+    doc = Document(DOCX_SRC)
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-    doc.add_heading("Page Two", level=1)
-    doc.add_paragraph("Content of page two.")
+    doc.add_paragraph("Second page - appended for test.")
     buf = io.BytesIO()
     doc.save(buf)
     operator = get_operator(stage)
