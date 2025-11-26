@@ -12,10 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import json
+from pathlib import Path
 
 from databend_aiserver.udfs.files import _read_docx, _read_pdf
 from databend_aiserver.udfs.docparse import ai_parse_document
+from databend_aiserver.stages.operator import get_operator, resolve_stage_subpath
+from pypdf import PdfReader, PdfWriter
+from docx import Document
+from docx.enum.text import WD_BREAK
+
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
+def _write_multipage_pdf(stage, filename: str = "multi.pdf"):
+    base = (DATA_DIR / "sample.pdf").read_bytes()
+    reader = PdfReader(io.BytesIO(base))
+    writer = PdfWriter()
+    for _ in range(2):
+        for page in reader.pages:
+            writer.add_page(page)
+    buf = io.BytesIO()
+    writer.write(buf)
+    operator = get_operator(stage)
+    operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
+
+
+def _write_multipage_docx(stage, filename: str = "multi.docx"):
+    doc = Document()
+    doc.add_heading("Page One", level=1)
+    doc.add_paragraph("Content of page one.")
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    doc.add_heading("Page Two", level=1)
+    doc.add_paragraph("Content of page two.")
+    buf = io.BytesIO()
+    doc.save(buf)
+    operator = get_operator(stage)
+    operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
 
 
 def test_read_pdf(memory_stage):
@@ -33,7 +67,8 @@ def test_read_docx(memory_stage):
 
 
 def test_parse_document(memory_stage):
-    result = ai_parse_document(memory_stage, "sample.pdf")
+    _write_multipage_pdf(memory_stage, "multi.pdf")
+    result = ai_parse_document(memory_stage, "multi.pdf")
 
     assert isinstance(result, dict)
     # Normalize dynamic fields to placeholders, then compare against an expected JSON string
@@ -57,10 +92,13 @@ def test_parse_document(memory_stage):
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
     expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
     assert actual_str == expected_str
+    # ensure multi-page content merged
+    assert result["content"].count("Dummy PDF file") >= 2
 
 
 def test_parse_document_docx(memory_stage):
-    result = ai_parse_document(memory_stage, "sample.docx")
+    _write_multipage_docx(memory_stage, "multi.docx")
+    result = ai_parse_document(memory_stage, "multi.docx")
 
     assert isinstance(result, dict)
     normalized = dict(result)

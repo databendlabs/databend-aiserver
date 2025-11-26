@@ -17,6 +17,40 @@ import json
 from databend_udf.client import UDFClient
 
 from tests.integration.conftest import build_stage_mapping
+from databend_aiserver.stages.operator import get_operator, resolve_stage_subpath
+from pypdf import PdfReader, PdfWriter
+from docx import Document
+from docx.enum.text import WD_BREAK
+from pathlib import Path
+import io
+
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
+def _write_multipage_pdf(stage, filename: str):
+    base = (DATA_DIR / "sample.pdf").read_bytes()
+    reader = PdfReader(io.BytesIO(base))
+    writer = PdfWriter()
+    for _ in range(2):
+        for page in reader.pages:
+            writer.add_page(page)
+    buf = io.BytesIO()
+    writer.write(buf)
+    operator = get_operator(stage)
+    operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
+
+
+def _write_multipage_docx(stage, filename: str):
+    doc = Document()
+    doc.add_heading("Page One", level=1)
+    doc.add_paragraph("Content of page one.")
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    doc.add_heading("Page Two", level=1)
+    doc.add_paragraph("Content of page two.")
+    buf = io.BytesIO()
+    doc.save(buf)
+    operator = get_operator(stage)
+    operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
 
 
 def test_read_pdf_round_trip(running_server, memory_stage):
@@ -48,10 +82,11 @@ def test_read_docx_round_trip(running_server, memory_stage):
 
 
 def test_parse_document_round_trip(running_server, memory_stage):
+    _write_multipage_pdf(memory_stage, "multi.pdf")
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function(
         "ai_parse_document",
-        "sample.pdf",
+        "multi.pdf",
         stage_locations=[build_stage_mapping(memory_stage)],
     )
 
@@ -86,13 +121,15 @@ def test_parse_document_round_trip(running_server, memory_stage):
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
     expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
     assert actual_str == expected_str
+    assert payload["content"].count("Dummy PDF file") >= 2
 
 
 def test_parse_document_docx_round_trip(running_server, memory_stage):
+    _write_multipage_docx(memory_stage, "multi.docx")
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function(
         "ai_parse_document",
-        "sample.docx",
+        "multi.docx",
         stage_locations=[build_stage_mapping(memory_stage)],
     )
 
@@ -127,3 +164,5 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
     expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
     assert actual_str == expected_str
+    assert "Page One" in payload["content"]
+    assert "Page Two" in payload["content"]
