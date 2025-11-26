@@ -10,14 +10,15 @@ readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Databend Labs" }]
 dependencies = [
-    "databend-udf==0.2.7",
-    "opendal>=0.43.3",
-    "pypdf>=4.0.0",
-    "python-docx>=1.1.0",
+    "databend-udf==0.2.8",
+    "opendal==0.45.1",
+    "pypdf==4.0.0",
+    "python-docx==1.1.0",
     "uvicorn>=0.29.0",
-    "huggingface-hub>=0.23.0",
-    "transformers>=4.44.0",
-    "torch>=2.3.0",
+    "huggingface-hub==0.36.0",
+    "transformers==4.51.0",
+    "torch==2.3.1",
+    "accelerate==0.33.0",
 ]
 
 [project.optional-dependencies]

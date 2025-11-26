@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from databend_aiserver.stages.operator import resolve_stage_subpath
-from databend_aiserver.udfs.stage import _list_stage_files
+from databend_aiserver.udfs.stage import _collect_stage_files
 
 
 def test_resolve_stage_subpath(memory_stage):
@@ -22,18 +22,20 @@ def test_resolve_stage_subpath(memory_stage):
 
 
 def test_list_stage_files(memory_stage):
-    result = _list_stage_files(memory_stage, None)
+    entries, truncated = _collect_stage_files(memory_stage, None)
 
-    paths = {item["path"] for item in result["files"]}
+    paths = {item["path"] for item in entries}
     assert "sample.pdf" in paths
     assert "sample.docx" in paths
     assert "subdir/note.txt" in paths
 
-    sample_entry = next(item for item in result["files"] if item["path"] == "sample.pdf")
+    sample_entry = next(item for item in entries if item["path"] == "sample.pdf")
     assert sample_entry.get("size", 0) > 0
+    assert truncated is False
 
 
 def test_list_stage_files_limited(memory_stage):
-    result = _list_stage_files(memory_stage, 2)
-    assert result["count"] == 2
-    assert result["truncated"] is True
+    entries, truncated = _collect_stage_files(memory_stage, 2)
+
+    assert len(entries) == 2
+    assert truncated is True

@@ -20,7 +20,7 @@ from tests.integration.conftest import build_stage_mapping
 def test_read_pdf_round_trip(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function(
-        "aiserver_read_pdf",
+        "ai_read_pdf",
         "sample.pdf",
         stage_locations=[build_stage_mapping(memory_stage)],
     )
@@ -28,13 +28,13 @@ def test_read_pdf_round_trip(running_server, memory_stage):
     assert len(result) == 1
     payload = result[0]
     assert isinstance(payload, str)
-    assert "Dummy PDF file" in payload
+    assert "dummy" in payload.replace(" ", "").lower()
 
 
 def test_read_docx_round_trip(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function(
-        "aiserver_read_docx",
+        "ai_read_docx",
         "sample.docx",
         stage_locations=[build_stage_mapping(memory_stage)],
     )

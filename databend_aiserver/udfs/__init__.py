@@ -14,13 +14,13 @@
 
 """Collection of UDF implementations exposed by the AI server."""
 
-from .stage import aiserver_list_stage_files
-from .files import aiserver_read_docx, aiserver_read_pdf
-from .embeddings import aiserver_vector_embed_text_1024
+from .stage import ai_list_files
+from .files import ai_read_docx, ai_read_pdf
+from .embeddings import ai_embed_1024
 
 __all__ = [
-    "aiserver_list_stage_files",
-    "aiserver_read_pdf",
-    "aiserver_read_docx",
-    "aiserver_vector_embed_text_1024",
+    "ai_list_files",
+    "ai_read_pdf",
+    "ai_read_docx",
+    "ai_embed_1024",
 ]

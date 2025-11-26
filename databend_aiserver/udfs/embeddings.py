@@ -92,6 +92,7 @@ class _EmbeddingBackend:
             model_name,
             cache_dir=cache_dir,
             trust_remote_code=True,
+            use_fast=False,  # fast tokenizer for Qwen3 embedding can be incompatible with tokenizers version
         )
         torch_dtype = torch.float16 if device in {"cuda", "mps"} else torch.float32
         model = AutoModel.from_pretrained(
@@ -159,21 +160,22 @@ def _resolve_model(model: str) -> Tuple[str, int]:
 
 
 @udf(
-    input_types=["STRING", "STRING"],
+    input_types=["STRING"],
     result_type="ARRAY(NULLABLE(FLOAT))",
-    name="aiserver_vector_embed_text_1024",
+    name="ai_embed_1024",
     io_threads=4,
     batch_mode=True,
 )
-def aiserver_vector_embed_text_1024(model: Sequence[str] | str, text: Sequence[str] | str) -> List[List[float]]:
+def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
     """SQL definition:
 
     ```sql
-    CREATE FUNCTION as_vector_embed_text_1024(model STRING, text STRING)
+    CREATE FUNCTION ai_embed_1024(text STRING)
         RETURNS ARRAY(FLOAT NULL);
     ```
-    ``model`` may be a single alias/model id or a list matching the batch of
-    ``text`` inputs. ``text`` can be a single string or a list of strings.
+
+    Uses the default embedding model (alias 'qwen' → Qwen/Qwen3-Embedding-0.6B).
+    Accepts a single string or a list of strings for batch embedding.
     """
 
     if isinstance(text, list):
@@ -181,30 +183,14 @@ def aiserver_vector_embed_text_1024(model: Sequence[str] | str, text: Sequence[s
     else:
         texts = [text]
 
-    if not model:
-        raise EmbeddingBackendError(
-            "Model identifier is required. Supported aliases: "
-            + ", ".join(alias for alias, _, _ in SUPPORTED_MODELS)
-        )
-
-    if isinstance(model, list):
-        models = list(model)
-        if len(models) not in (1, len(texts)):
-            raise EmbeddingBackendError(
-                "Model list length must be 1 or match the number of text inputs"
-            )
-        if len(models) == 1 and len(texts) > 1:
-            models = models * len(texts)
-    else:
-        models = [model] * len(texts)
+    model_name, expected_dimension = _resolve_model(SUPPORTED_MODELS[0][0])
+    backend = _get_backend(model_name)
 
     vectors: List[List[float]] = []
-    for model_item, text_item in zip(models, texts):
+    for text_item in texts:
         if not text_item:
             vectors.append([])
             continue
-        model_name, expected_dimension = _resolve_model(model_item)
-        backend = _get_backend(model_name)
         vector = backend.embed(text_item)
         if vector and len(vector) != expected_dimension:
             raise EmbeddingBackendError(

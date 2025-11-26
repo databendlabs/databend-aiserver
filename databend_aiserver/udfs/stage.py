@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from databend_udf import StageLocation, udf
 from opendal import exceptions as opendal_exceptions
@@ -28,19 +28,9 @@ from databend_aiserver.stages.operator import (
 )
 
 
-def _prepare_listing_response(
-    stage: StageLocation, files: List[Dict[str, Any]], truncated: bool
-) -> Dict[str, Any]:
-    return {
-        "stage": stage.stage_name,
-        "relative_path": stage.relative_path,
-        "files": files,
-        "count": len(files),
-        "truncated": truncated,
-    }
-
-
-def _list_stage_files(stage: StageLocation, limit: Optional[int]) -> Dict[str, Any]:
+def _collect_stage_files(
+    stage: StageLocation, limit: Optional[int]
+) -> tuple[List[Dict[str, Any]], bool]:
     """List objects stored under a Databend stage."""
 
     try:
@@ -67,7 +57,14 @@ def _list_stage_files(stage: StageLocation, limit: Optional[int]) -> Dict[str, A
         if not relative_path and is_dir:
             continue
 
-        file_info: Dict[str, Any] = {"path": relative_path or path, "is_dir": is_dir}
+        file_info: Dict[str, Any] = {
+            "path": relative_path or path,
+            "is_dir": is_dir,
+            "size": None,
+            "mode": None,
+            "content_type": None,
+            "etag": None,
+        }
 
         try:
             metadata = operator.stat(path)
@@ -88,16 +85,76 @@ def _list_stage_files(stage: StageLocation, limit: Optional[int]) -> Dict[str, A
             truncated = True
             break
 
-    return _prepare_listing_response(stage, entries, truncated)
+    return entries, truncated
 
 
-@udf(stage_refs=["stage"], input_types=["INT"], result_type="VARIANT", io_threads=8)
-def aiserver_list_stage_files(stage: StageLocation, limit: Optional[int]) -> Dict[str, Any]:
+# SQL snippet for registering this UDTF in Databend.
+# Replace <udf_host>:<port> with your running databend-aiserver address.
+AI_LIST_FILES_CREATE_SQL = """
+CREATE OR REPLACE FUNCTION ai_list_files(
+    stage STAGE_LOCATION,
+    limit INT
+)
+RETURNS TABLE (
+    stage         VARCHAR,
+    relative_path VARCHAR,
+    path          VARCHAR,
+    is_dir        BOOLEAN,
+    size          BIGINT NULL,
+    mode          VARCHAR NULL,
+    content_type  VARCHAR NULL,
+    etag          VARCHAR NULL,
+    truncated     BOOLEAN
+)
+LANGUAGE python
+HANDLER = 'ai_list_files'
+ADDRESS = 'http://<udf_host>:<port>';
+"""
+
+
+@udf(
+    stage_refs=["stage"],
+    input_types=["INT"],
+    result_type=[
+        ("stage", "VARCHAR"),
+        ("relative_path", "VARCHAR"),
+        ("path", "VARCHAR"),
+        ("is_dir", "BOOLEAN"),
+        ("size", "BIGINT NULL"),
+        ("mode", "VARCHAR NULL"),
+        ("content_type", "VARCHAR NULL"),
+        ("etag", "VARCHAR NULL"),
+        ("truncated", "BOOLEAN"),
+    ],
+    name="ai_list_files",
+)
+def ai_list_files(
+    stage: StageLocation, limit: Optional[int]
+) -> Iterable[Dict[str, Any]]:
     """SQL definition:
 
     ```sql
-    CREATE FUNCTION aiserver_list_stage_files(stage STAGE_LOCATION, limit INT)
-        RETURNS VARIANT;
+    CREATE FUNCTION ai_list_files(stage STAGE_LOCATION, limit INT)
+        RETURNS (
+            stage VARCHAR,
+            relative_path VARCHAR,
+            path VARCHAR,
+            is_dir BOOLEAN,
+            size BIGINT NULL,
+            mode VARCHAR NULL,
+            content_type VARCHAR NULL,
+            etag VARCHAR NULL,
+            truncated BOOLEAN
+        );
     ```
     """
-    return _list_stage_files(stage, limit)
+
+    entries, truncated = _collect_stage_files(stage, limit)
+    static_values = {
+        "stage": stage.stage_name,
+        "relative_path": stage.relative_path,
+        "truncated": truncated,
+    }
+
+    for entry in entries:
+        yield {**static_values, **entry}
