@@ -52,14 +52,14 @@ def _write_multipage_docx(stage, filename: str = "multi.docx"):
 
 
 def test_read_pdf(memory_stage):
-    result = _read_pdf(memory_stage, "sample.pdf")
+    result = _read_pdf(memory_stage, "2206.01062.pdf")
 
     assert isinstance(result, str)
     assert "dummy" in result.replace(" ", "").lower()
 
 
 def test_read_docx(memory_stage):
-    result = _read_docx(memory_stage, "sample.docx")
+    result = _read_docx(memory_stage, "lorem_ipsum.docx")
 
     assert isinstance(result, str)
     assert "This is a short paragraph" in result
@@ -78,12 +78,12 @@ def test_parse_document(memory_stage):
 
     normalized = {
         "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": result.get("errorInformation"),
     }
     expected = {
-        "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
@@ -104,12 +104,12 @@ def test_parse_document_docx(memory_stage):
 
     normalized = {
         "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": result.get("errorInformation"),
     }
     expected = {
-        "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)

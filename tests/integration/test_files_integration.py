@@ -78,13 +78,13 @@ def test_parse_document_round_trip(running_server, memory_stage):
     page_count = len(pages)
     normalized = {
         "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": payload.get("errorInformation"),
     }
 
     expected = {
-        "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": None,
     }
 
@@ -119,13 +119,13 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     page_count = len(pages)
     normalized = {
         "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": payload.get("errorInformation"),
     }
 
     expected = {
-        "pages": pages,
-        "metadata": {"pageCount": page_count},
+        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": None,
     }
 

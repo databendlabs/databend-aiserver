@@ -23,6 +23,8 @@ from databend_aiserver.stages.operator import clear_operator_cache, get_operator
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 RELATIVE_PATH = "data"
+PDF_SRC = DATA_DIR / "2206.01062.pdf"
+DOCX_SRC = DATA_DIR / "lorem_ipsum.docx"
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +48,7 @@ def memory_stage() -> StageLocation:
     operator = get_operator(stage)
     operator.create_dir(f"{RELATIVE_PATH}/")
     operator.create_dir(f"{RELATIVE_PATH}/subdir/")
-    operator.write(f"{RELATIVE_PATH}/sample.pdf", (DATA_DIR / "sample.pdf").read_bytes())
-    operator.write(f"{RELATIVE_PATH}/sample.docx", (DATA_DIR / "sample.docx").read_bytes())
+    operator.write(f"{RELATIVE_PATH}/2206.01062.pdf", PDF_SRC.read_bytes())
+    operator.write(f"{RELATIVE_PATH}/lorem_ipsum.docx", DOCX_SRC.read_bytes())
     operator.write(f"{RELATIVE_PATH}/subdir/note.txt", b"hello from memory")
     return stage

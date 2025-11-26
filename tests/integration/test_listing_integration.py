@@ -28,7 +28,7 @@ def test_list_stage_files_round_trip(running_server, memory_stage):
     assert len(rows) >= 3
     paths = {row["path"] for row in rows}
 
-    assert {"sample.pdf", "sample.docx", "subdir/note.txt"}.issubset(paths)
+    assert {"2206.01062.pdf", "lorem_ipsum.docx", "subdir/note.txt"}.issubset(paths)
     assert {row["stage"] for row in rows} == {memory_stage.stage_name}
     assert {row["relative_path"] for row in rows} == {memory_stage.relative_path}
     assert all(row["truncated"] is False for row in rows)
