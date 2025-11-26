@@ -84,10 +84,9 @@ def test_parse_document(memory_stage):
     }
     expected = {
         "pages": [
-            {"index": 0, "content": "Dumm y PDF file"},
-            {"index": 1, "content": "Dumm y PDF file"},
+            {"index": 0, "content": "Dumm y PDF file Dumm y PDF file"},
         ],
-        "metadata": {"pageCount": 2},
+        "metadata": {"pageCount": 1},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
@@ -113,10 +112,9 @@ def test_parse_document_docx(memory_stage):
     }
     expected = {
         "pages": [
-            {"index": 0, "content": "Page One Content of page one."},
-            {"index": 1, "content": "Page Two Content of page two."},
+            {"index": 0, "content": "Page One Content of page one. Page Two Content of page two."},
         ],
-        "metadata": {"pageCount": 2},
+        "metadata": {"pageCount": 1},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)

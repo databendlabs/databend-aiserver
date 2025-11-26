@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import io
+import mimetypes
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -24,6 +25,10 @@ from typing import Any, Dict, List, Optional
 from databend_udf import StageLocation, udf
 from docling.document_converter import DocumentConverter
 from docling.datamodel.document import ConversionResult
+try:  # pragma: no cover - optional in-memory path
+    from docling.datamodel.document import DocumentStream
+except Exception:  # pragma: no cover
+    DocumentStream = None  # type: ignore
 from opendal import exceptions as opendal_exceptions
 from pypdf import PdfReader
 from docx import Document as DocxDocument
@@ -53,49 +58,29 @@ def _load_stage_file(stage: StageLocation, path: str) -> bytes:
         raise RuntimeError(f"Failed to read '{resolved}' from stage") from exc
 
 
+def _guess_mime_from_suffix(suffix: str) -> str:
+    mime, _ = mimetypes.guess_type(f"file{suffix}")
+    return mime or "application/octet-stream"
+
+
 def _convert_to_markdown(data: bytes, suffix: str) -> ConversionResult:
     converter = DocumentConverter()
+    # Prefer in-memory stream when supported to avoid temp files
+    if DocumentStream is not None:
+        try:
+            stream = DocumentStream(
+                stream=data,
+                name=f"doc{suffix}",
+                mime_type=_guess_mime_from_suffix(suffix),
+            )
+            return converter.convert(stream)
+        except Exception:
+            pass  # fallback to temp file
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir) / f"doc{suffix}"
         tmp_path.write_bytes(data)
         return converter.convert(tmp_path)
-
-
-def _extract_pdf_pages(data: bytes) -> List[str]:
-    reader = PdfReader(io.BytesIO(data))
-    pages: List[str] = []
-    for page in reader.pages:
-        text = page.extract_text() or ""
-        pages.append(text)
-    return pages
-
-
-def _extract_docx_pages(data: bytes) -> List[str]:
-    doc = DocxDocument(io.BytesIO(data))
-    pages: List[str] = []
-    current: List[str] = []
-
-    def flush():
-        if current:
-            pages.append("\n".join(current).strip())
-            current.clear()
-
-    for para in doc.paragraphs:
-        runs = para.runs or []
-        has_page_break = any(
-            run._element.tag.endswith("}br")
-            and run._element.get(qn("w:type")) == "page"
-            for run in runs
-        )
-        text = para.text.strip()
-        if text:
-            current.append(text)
-        if has_page_break:
-            flush()
-    flush()
-    if not pages and current:
-        pages.append("\n".join(current))
-    return pages or [doc.core_properties.title or ""]
 
 
 @udf(
@@ -120,16 +105,10 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
         doc = result.document
         markdown = doc.export_to_markdown()
 
-        # Build pages array (Snowflake-like pagination)
-        pages: List[str]
-        lowered = suffix.lower()
-        if lowered == ".pdf":
-            pages = _extract_pdf_pages(raw)
-        elif lowered == ".docx":
-            pages = _extract_docx_pages(raw)
-        else:
-            pages = [markdown] if markdown else []
-
+        # Snowflake-compatible (page_split=true) shape:
+        # single element pages array (Docling does its own pagination internally;
+        # here we expose one element containing full markdown)
+        pages: List[str] = [markdown] if markdown else []
         page_count = len(pages) if pages else None
 
         # Snowflake-compatible (page_split=true) shape:
