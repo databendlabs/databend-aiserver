@@ -68,12 +68,12 @@ def _read_pdf(stage: StageLocation, path: str) -> str:
     return _DEFAULT_JOIN.join(segment for segment in texts if segment)
 
 
-@udf(stage_refs=["stage"], input_types=["STRING"], result_type="STRING")
-def aiserver_read_pdf(stage: StageLocation, path: str) -> str:
+@udf(stage_refs=["stage"], input_types=["STRING"], result_type="STRING", name="ai_read_pdf")
+def ai_read_pdf(stage: StageLocation, path: str) -> str:
     """SQL definition:
 
     ```sql
-    CREATE FUNCTION aiserver_read_pdf(stage STAGE_LOCATION, path STRING)
+    CREATE FUNCTION ai_read_pdf(stage STAGE_LOCATION, path STRING)
         RETURNS STRING;
     ```
     """
@@ -91,12 +91,12 @@ def _read_docx(stage: StageLocation, path: str) -> str:
     return _DEFAULT_JOIN.join(paragraphs)
 
 
-@udf(stage_refs=["stage"], input_types=["STRING"], result_type="STRING")
-def aiserver_read_docx(stage: StageLocation, path: str) -> str:
+@udf(stage_refs=["stage"], input_types=["STRING"], result_type="STRING", name="ai_read_docx")
+def ai_read_docx(stage: StageLocation, path: str) -> str:
     """SQL definition:
 
     ```sql
-    CREATE FUNCTION aiserver_read_docx(stage STAGE_LOCATION, path STRING)
+    CREATE FUNCTION ai_read_docx(stage STAGE_LOCATION, path STRING)
         RETURNS STRING;
     ```
     """

@@ -18,14 +18,14 @@ from databend_aiserver.udfs.embeddings import (
     EXPECTED_DIMENSION,
     DEFAULT_EMBEDDING_MODEL,
     SUPPORTED_MODELS,
-    aiserver_vector_embed_text_1024,
+    ai_embed_1024,
     EmbeddingBackendError,
 )
 
 
 @pytest.mark.slow
 def test_vector_embed_text_real_backend_alias():
-    result = aiserver_vector_embed_text_1024("qwen", "Databend vector embedding test.")
+    result = ai_embed_1024("Databend vector embedding test.")
 
     assert len(result) == 1
     assert len(result[0]) == EXPECTED_DIMENSION
@@ -34,9 +34,8 @@ def test_vector_embed_text_real_backend_alias():
 
 @pytest.mark.slow
 def test_vector_embed_text_explicit_model():
-    result = aiserver_vector_embed_text_1024(
-        DEFAULT_EMBEDDING_MODEL, "Databend explicit model embedding test."
-    )
+    # DEFAULT_EMBEDDING_MODEL kept for backward compatibility but function ignores it
+    result = ai_embed_1024("Databend explicit model embedding test.")
 
     assert len(result) == 1
     assert len(result[0]) == EXPECTED_DIMENSION
@@ -44,19 +43,15 @@ def test_vector_embed_text_explicit_model():
 
 
 def test_vector_embed_text_rejects_unknown_model():
-    with pytest.raises(EmbeddingBackendError) as exc:
-        aiserver_vector_embed_text_1024("unknown-model", "text")
-
-    assert str(exc.value) == (
-        "Model 'unknown-model' is not supported. Supported values: "
-        "alias 'qwen' (model id 'Qwen/Qwen3-Embedding-0.6B')"
-    )
+    # Model selection is fixed; unknown model input is not accepted by signature
+    with pytest.raises(TypeError):
+        ai_embed_1024("text", "extra")
 
 
 @pytest.mark.slow
 def test_vector_embed_text_batch_inputs():
     texts = ["Databend batch vector embedding test.", "Another embedding row."]
-    result = aiserver_vector_embed_text_1024("qwen", texts)
+    result = ai_embed_1024(texts)
 
     assert len(result) == 2
     for vector in result:

@@ -3,11 +3,11 @@
 [Databend](https://github.com/databendlabs/databend) AI Server extends any data warehouse with
 AI-ready UDFs, seamlessly fusing object storage, embeddings, and SQL pipelines.
 
-## UDFs (prefix `aiserver_`)
-- `list_stage_files(stage, limit)` – enumerate objects from external stages.
+## UDFs (prefix `ai_`)
+- `list_files(stage, limit)` – UDTF that emits one row per object in external stages.
 - `read_pdf(stage, path)` – extract PDF text.
 - `read_docx(stage, path)` – extract DOCX text.
-- `vector_embed_text_1024(model, text)` – 1024-dim embeddings (batch-friendly).
+- `embed_1024(text)` – 1024-dim embeddings (batch-friendly, default model qwen).
 
 ## Quickstart
 ```bash
@@ -26,15 +26,21 @@ CREATE STAGE docs_stage
   URL='s3://load/files/'
   CONNECTION = (CONNECTION_NAME = 'my_s3_connection');
 
-SELECT * FROM aiserver_list_stage_files(@docs_stage, 50);
-SELECT aiserver_read_pdf(@docs_stage, 'reports/q1.pdf');
-SELECT aiserver_read_docx(@docs_stage, 'reports/q1.docx');
-SELECT aiserver_vector_embed_text_1024('qwen', doc_body) FROM docs_tbl;
+SELECT * FROM ai_list_files(@docs_stage, 50);
+SELECT ai_read_pdf(@docs_stage, 'reports/q1.pdf');
+SELECT ai_read_docx(@docs_stage, 'reports/q1.docx');
+SELECT ai_embed_1024(doc_body) FROM docs_tbl;
 ```
+
+`ai_list_files` returns columns: `stage`, `relative_path`, `path`, `is_dir`,
+`size`, `mode`, `content_type`, `etag`, and `truncated` (true when the optional limit is hit).
 
 ## Tests
 ```bash
+# Full suite (CI should run this)
 uv run pytest
+
+# Quicker local loop (skips tests marked slow)
 uv run pytest -m "not slow"
 ```
 

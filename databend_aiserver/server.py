@@ -21,10 +21,10 @@ from typing import Optional
 from databend_udf import UDFServer
 
 from databend_aiserver.udfs import (
-    aiserver_list_stage_files,
-    aiserver_read_docx,
-    aiserver_read_pdf,
-    aiserver_vector_embed_text_1024,
+    ai_list_files,
+    ai_read_docx,
+    ai_read_pdf,
+    ai_embed_1024,
 )
 
 
@@ -49,8 +49,8 @@ def create_server(
         f"{host}:{metric_port}" if metric_port is not None else None
     )
     server = UDFServer(location, metric_location=metric_location)
-    server.add_function(aiserver_list_stage_files)
-    server.add_function(aiserver_read_pdf)
-    server.add_function(aiserver_read_docx)
-    server.add_function(aiserver_vector_embed_text_1024)
+    server.add_function(ai_list_files)
+    server.add_function(ai_read_pdf)
+    server.add_function(ai_read_docx)
+    server.add_function(ai_embed_1024)
     return server

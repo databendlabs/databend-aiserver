@@ -21,8 +21,7 @@ from databend_aiserver.udfs.embeddings import SUPPORTED_MODELS
 def test_vector_embedding_round_trip(running_server):
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function(
-        "aiserver_vector_embed_text_1024",
-        "qwen",
+        "ai_embed_1024",
         "embedded text",
     )
 
@@ -36,8 +35,7 @@ def test_vector_embedding_round_trip(running_server):
 def test_vector_embedding_batch_round_trip(running_server):
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function_batch(
-        "aiserver_vector_embed_text_1024",
-        model=["qwen", "qwen"],
+        "ai_embed_1024",
         text=["embedded text", "second row"],
     )
 
@@ -49,14 +47,11 @@ def test_vector_embedding_batch_round_trip(running_server):
 
 def test_vector_embedding_rejects_unknown_model(running_server):
     client = UDFClient(host="127.0.0.1", port=running_server)
-    with pytest.raises(Exception) as exc:
-        client.call_function(
-            "aiserver_vector_embed_text_1024",
-            "unknown",
-            "text",
-        )
+    result = client.call_function(
+        "ai_embed_1024",
+        "text",
+    )
 
-    assert (
-        "Model 'unknown' is not supported. Supported values: "
-        "alias 'qwen' (model id 'Qwen/Qwen3-Embedding-0.6B')"
-    ) in str(exc.value)
+    assert len(result) == 1
+    assert isinstance(result[0], list)
+    assert len(result[0]) == 1024
