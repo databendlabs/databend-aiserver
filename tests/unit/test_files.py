@@ -36,23 +36,50 @@ def test_parse_document(memory_stage):
     result = ai_parse_document(memory_stage, "sample.pdf")
 
     assert isinstance(result, dict)
-    result_str = json.dumps(result, ensure_ascii=False, sort_keys=True)
-    assert isinstance(result_str, str)
-    assert '"content":"' in result_str
-    assert '"errorInformation":null' in result_str
-    assert '"generator":"docling"' in result_str
-    assert '"mode":"LAYOUT"' in result_str
-    assert '"tablesFormat":"markdown"' in result_str
+    # Normalize dynamic fields to placeholders, then compare against an expected JSON string
+    normalized = dict(result)
+    normalized["content"] = "<CONTENT>"
+    metadata = dict(normalized.get("metadata") or {})
+    metadata["pageCount"] = "<PAGECOUNT>"
+    normalized["metadata"] = metadata
+    expected = {
+        "content": "<CONTENT>",
+        "metadata": {
+            "pageCount": "<PAGECOUNT>",
+            "mode": "LAYOUT",
+            "tablesFormat": "markdown",
+            "imagesMode": "placeholder",
+            "generator": "docling",
+            "unused_options": [],
+        },
+        "errorInformation": None,
+    }
+    actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+    assert actual_str == expected_str
 
 
 def test_parse_document_docx(memory_stage):
     result = ai_parse_document(memory_stage, "sample.docx")
 
     assert isinstance(result, dict)
-    result_str = json.dumps(result, ensure_ascii=False, sort_keys=True)
-    assert isinstance(result_str, str)
-    assert '"content":"' in result_str
-    assert '"errorInformation":null' in result_str
-    assert '"generator":"docling"' in result_str
-    assert '"mode":"LAYOUT"' in result_str
-    assert '"tablesFormat":"markdown"' in result_str
+    normalized = dict(result)
+    normalized["content"] = "<CONTENT>"
+    metadata = dict(normalized.get("metadata") or {})
+    metadata["pageCount"] = "<PAGECOUNT>"
+    normalized["metadata"] = metadata
+    expected = {
+        "content": "<CONTENT>",
+        "metadata": {
+            "pageCount": "<PAGECOUNT>",
+            "mode": "LAYOUT",
+            "tablesFormat": "markdown",
+            "imagesMode": "placeholder",
+            "generator": "docling",
+            "unused_options": [],
+        },
+        "errorInformation": None,
+    }
+    actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+    assert actual_str == expected_str

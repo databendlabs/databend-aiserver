@@ -58,12 +58,28 @@ def test_parse_document_round_trip(running_server, memory_stage):
     assert len(result) == 1
     payload = result[0]
     assert isinstance(payload, dict)
-    result_str = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-    assert '"content":"' in result_str
-    assert '"errorInformation":null' in result_str
-    assert '"generator":"docling"' in result_str
-    assert '"mode":"LAYOUT"' in result_str
-    assert '"tablesFormat":"markdown"' in result_str
+    normalized = dict(payload)
+    normalized["content"] = "<CONTENT>"
+    metadata = dict(normalized.get("metadata") or {})
+    metadata["pageCount"] = "<PAGECOUNT>"
+    normalized["metadata"] = metadata
+
+    expected = {
+        "content": "<CONTENT>",
+        "metadata": {
+            "pageCount": "<PAGECOUNT>",
+            "mode": "LAYOUT",
+            "tablesFormat": "markdown",
+            "imagesMode": "placeholder",
+            "generator": "docling",
+            "unused_options": [],
+        },
+        "errorInformation": None,
+    }
+
+    actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+    assert actual_str == expected_str
 
 
 def test_parse_document_docx_round_trip(running_server, memory_stage):
@@ -77,9 +93,25 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     assert len(result) == 1
     payload = result[0]
     assert isinstance(payload, dict)
-    result_str = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-    assert '"content":"' in result_str
-    assert '"errorInformation":null' in result_str
-    assert '"generator":"docling"' in result_str
-    assert '"mode":"LAYOUT"' in result_str
-    assert '"tablesFormat":"markdown"' in result_str
+    normalized = dict(payload)
+    normalized["content"] = "<CONTENT>"
+    metadata = dict(normalized.get("metadata") or {})
+    metadata["pageCount"] = "<PAGECOUNT>"
+    normalized["metadata"] = metadata
+
+    expected = {
+        "content": "<CONTENT>",
+        "metadata": {
+            "pageCount": "<PAGECOUNT>",
+            "mode": "LAYOUT",
+            "tablesFormat": "markdown",
+            "imagesMode": "placeholder",
+            "generator": "docling",
+            "unused_options": [],
+        },
+        "errorInformation": None,
+    }
+
+    actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+    assert actual_str == expected_str
