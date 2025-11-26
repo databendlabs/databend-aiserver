@@ -31,7 +31,6 @@ except Exception:  # pragma: no cover
     DocumentStream = None  # type: ignore
 from docling.chunking import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
-from transformers import AutoTokenizer
 from opendal import exceptions as opendal_exceptions
 
 from databend_aiserver.stages.operator import (
@@ -83,6 +82,16 @@ def _convert_to_markdown(data: bytes, suffix: str) -> ConversionResult:
         return converter.convert(tmp_path)
 
 
+_DEFAULT_TOKENIZER_MODEL = "Qwen/Qwen3-Embedding-0.6B"
+_TOKENIZER_CACHE: Dict[str, HuggingFaceTokenizer] = {}
+
+
+def _get_hf_tokenizer(model_name: str) -> HuggingFaceTokenizer:
+    if model_name not in _TOKENIZER_CACHE:
+        _TOKENIZER_CACHE[model_name] = HuggingFaceTokenizer(tokenizer=model_name)
+    return _TOKENIZER_CACHE[model_name]
+
+
 @udf(
     name="ai_parse_document",
     stage_refs=["stage"],
@@ -105,15 +114,10 @@ def ai_parse_document(stage: StageLocation, path: str, chunk_size: Optional[int]
         doc = result.document
         markdown = doc.export_to_markdown()
 
-        # Docling chunking: chunk_size controls max_tokens; default chunker when not set.
-        if chunk_size and chunk_size > 0:
-            tokenizer = HuggingFaceTokenizer(
-                tokenizer=AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2"),
-                max_tokens=chunk_size,
-            )
-            chunker = HybridChunker(tokenizer=tokenizer)
-        else:
-            chunker = HybridChunker()
+        # Docling chunking: chunk_size controls max_tokens; tokenizer aligned with embedding model
+        max_tokens = chunk_size if chunk_size and chunk_size > 0 else None
+        tokenizer = _get_hf_tokenizer(_DEFAULT_TOKENIZER_MODEL)
+        chunker = HybridChunker(tokenizer=tokenizer, max_tokens=max_tokens)
 
         chunks = list(chunker.chunk(dl_doc=doc))
         pages: List[Dict[str, Any]] = [
