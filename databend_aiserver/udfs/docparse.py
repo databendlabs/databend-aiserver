@@ -65,9 +65,7 @@ def _guess_mime_from_suffix(suffix: str) -> str:
 
 
 def _convert_to_markdown(data: bytes, suffix: str) -> ConversionResult:
-    converter = DocumentConverter(
-        pipeline_options={"generate_page_images": True, "enable_ocr": True}
-    )
+    converter = DocumentConverter()
     # Prefer in-memory stream when supported to avoid temp files
     if DocumentStream is not None:
         try:
@@ -122,14 +120,16 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
 
         # Docling chunking: tokenizer aligned with embedding model.
         tokenizer = _get_hf_tokenizer(DEFAULT_EMBED_MODEL)
-        # HybridChunker defaults max_tokens=256 if not provided; we set explicitly.
-        chunker = HybridChunker(tokenizer=tokenizer, max_tokens=DEFAULT_CHUNK_SIZE)
+        chunker = HybridChunker(tokenizer=tokenizer)
 
-        chunks = list(chunker.chunk(dl_doc=doc))
-        pages: List[Dict[str, Any]] = [
-            {"index": idx, "content": chunker.contextualize(chunk)}
-            for idx, chunk in enumerate(chunks)
-        ]
+        try:
+            chunks = list(chunker.chunk(dl_doc=doc))
+            pages: List[Dict[str, Any]] = [
+                {"index": idx, "content": chunker.contextualize(chunk)}
+                for idx, chunk in enumerate(chunks)
+            ]
+        except Exception:
+            pages = [{"index": 0, "content": markdown}]
         if not pages:
             pages = [{"index": 0, "content": markdown}]
 
