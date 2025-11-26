@@ -72,29 +72,18 @@ def test_parse_document(memory_stage):
 
     assert isinstance(result, dict)
     normalized = dict(result)
-    normalized["content"] = "<CONTENT>"
-    metadata = dict(normalized.get("metadata") or {})
-    metadata["pageCount"] = "<PAGECOUNT>"
-    normalized["metadata"] = metadata
-    pages = normalized.get("pages") or []
+    normalized["metadata"] = {"pageCount": "<PAGECOUNT>"}
     normalized["pages"] = [
-        {"index": p["index"], "content": " ".join(p["content"].split())} for p in pages
+        {"index": p["index"], "content": " ".join(p["content"].split())}
+        for p in (normalized.get("pages") or [])
     ]
 
     expected = {
-        "content": "<CONTENT>",
         "pages": [
             {"index": 0, "content": "Dumm y PDF file"},
             {"index": 1, "content": "Dumm y PDF file"},
         ],
-        "metadata": {
-            "pageCount": "<PAGECOUNT>",
-            "mode": "LAYOUT",
-            "tablesFormat": "markdown",
-            "imagesMode": "placeholder",
-            "generator": "docling",
-            "unused_options": [],
-        },
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
@@ -108,28 +97,17 @@ def test_parse_document_docx(memory_stage):
 
     assert isinstance(result, dict)
     normalized = dict(result)
-    normalized["content"] = "<CONTENT>"
-    metadata = dict(normalized.get("metadata") or {})
-    metadata["pageCount"] = "<PAGECOUNT>"
-    normalized["metadata"] = metadata
-    pages = normalized.get("pages") or []
+    normalized["metadata"] = {"pageCount": "<PAGECOUNT>"}
     normalized["pages"] = [
-        {"index": p["index"], "content": " ".join(p["content"].split())} for p in pages
+        {"index": p["index"], "content": " ".join(p["content"].split())}
+        for p in (normalized.get("pages") or [])
     ]
     expected = {
-        "content": "<CONTENT>",
         "pages": [
             {"index": 0, "content": "Page One Content of page one."},
             {"index": 1, "content": "Page Two Content of page two."},
         ],
-        "metadata": {
-            "pageCount": "<PAGECOUNT>",
-            "mode": "LAYOUT",
-            "tablesFormat": "markdown",
-            "imagesMode": "placeholder",
-            "generator": "docling",
-            "unused_options": [],
-        },
+        "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)

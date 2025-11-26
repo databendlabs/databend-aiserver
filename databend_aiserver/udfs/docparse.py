@@ -132,19 +132,13 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
 
         page_count = len(pages) if pages else None
 
+        # Snowflake-compatible (page_split=true) shape:
+        # { "pages": [...], "metadata": {"pageCount": N}, "errorInformation": null }
         return {
-            "content": markdown,
             "pages": [
                 {"index": idx, "content": content} for idx, content in enumerate(pages)
             ],
-            "metadata": {
-                "pageCount": page_count,
-                "mode": "LAYOUT",
-                "tablesFormat": "markdown",
-                "imagesMode": "placeholder",
-                "generator": "docling",
-                "unused_options": [],
-            },
+            "metadata": {"pageCount": page_count},
             "errorInformation": None,
         }
     except Exception as exc:  # pragma: no cover - defensive for unexpected docling errors
