@@ -122,6 +122,7 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
         tokenizer = _get_hf_tokenizer(DEFAULT_EMBED_MODEL)
         chunker = HybridChunker(tokenizer=tokenizer)
 
+        fallback = False
         try:
             chunks = list(chunker.chunk(dl_doc=doc))
             pages: List[Dict[str, Any]] = [
@@ -130,8 +131,10 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
             ]
         except Exception:
             pages = [{"index": 0, "content": markdown}]
+            fallback = True
         if not pages:
             pages = [{"index": 0, "content": markdown}]
+            fallback = True
 
         page_count = len(pages)
 
@@ -139,8 +142,11 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
         # { "pages": [...], "metadata": {"pageCount": N}, "errorInformation": null }
         return {
             "pages": pages,
-            "metadata": {"pageCount": page_count},
-            "errorInformation": None,
+            "metadata": {
+                "pageCount": page_count,
+                "chunkingFallback": fallback,
+            },
+            "errorInformation": None if not fallback else {"type": "ChunkingFallback", "message": "chunker failed or returned empty; returned full markdown instead"},
         }
     except Exception as exc:  # pragma: no cover - defensive for unexpected docling errors
         return {
