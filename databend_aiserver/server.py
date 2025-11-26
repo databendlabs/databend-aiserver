@@ -25,6 +25,7 @@ from databend_aiserver.udfs import (
     ai_read_docx,
     ai_read_pdf,
     ai_embed_1024,
+    ai_parse_document,
 )
 
 
@@ -53,4 +54,5 @@ def create_server(
     server.add_function(ai_read_pdf)
     server.add_function(ai_read_docx)
     server.add_function(ai_embed_1024)
+    server.add_function(ai_parse_document)
     return server

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from databend_aiserver.udfs.files import _read_docx, _read_pdf
+from databend_aiserver.udfs.docparse import ai_parse_document
 
 
 def test_read_pdf(memory_stage):
@@ -27,3 +28,12 @@ def test_read_docx(memory_stage):
 
     assert isinstance(result, str)
     assert "This is a short paragraph" in result
+
+
+def test_parse_document(memory_stage):
+    result = ai_parse_document(memory_stage, "sample.pdf")
+
+    assert isinstance(result, dict)
+    assert result.get("errorInformation") is None
+    assert "content" in result and result["content"]
+    assert "metadata" in result and isinstance(result["metadata"], dict)

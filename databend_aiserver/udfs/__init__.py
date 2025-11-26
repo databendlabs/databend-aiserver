@@ -17,10 +17,12 @@
 from .stage import ai_list_files
 from .files import ai_read_docx, ai_read_pdf
 from .embeddings import ai_embed_1024
+from .docparse import ai_parse_document
 
 __all__ = [
     "ai_list_files",
     "ai_read_pdf",
     "ai_read_docx",
     "ai_embed_1024",
+    "ai_parse_document",
 ]

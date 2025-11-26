@@ -7,7 +7,7 @@ name = "databend-aiserver"
 version = "0.1.0"
 description = "Databend AI Server: bridge object storage and AI workloads via UDFs."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "Databend Labs" }]
 dependencies = [
     "databend-udf==0.2.8",
@@ -19,6 +19,7 @@ dependencies = [
     "transformers==4.51.0",
     "torch==2.3.1",
     "accelerate==0.33.0",
+    "docling==2.63.0",
 ]
 
 [project.optional-dependencies]
