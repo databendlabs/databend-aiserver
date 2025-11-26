@@ -65,7 +65,9 @@ def _guess_mime_from_suffix(suffix: str) -> str:
 
 
 def _convert_to_markdown(data: bytes, suffix: str) -> ConversionResult:
-    converter = DocumentConverter()
+    converter = DocumentConverter(
+        pipeline_options={"generate_page_images": True, "enable_ocr": True}
+    )
     # Prefer in-memory stream when supported to avoid temp files
     if DocumentStream is not None:
         try:
@@ -90,7 +92,9 @@ _TOKENIZER_CACHE: Dict[str, HuggingFaceTokenizer] = {}
 def _get_hf_tokenizer(model_name: str) -> HuggingFaceTokenizer:
     if model_name not in _TOKENIZER_CACHE:
         tok = AutoTokenizer.from_pretrained(model_name)
-        _TOKENIZER_CACHE[model_name] = HuggingFaceTokenizer(tokenizer=tok)
+        _TOKENIZER_CACHE[model_name] = HuggingFaceTokenizer(
+            tokenizer=tok, max_tokens=DEFAULT_CHUNK_SIZE
+        )
     return _TOKENIZER_CACHE[model_name]
 
 
