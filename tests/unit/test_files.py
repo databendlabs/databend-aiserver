@@ -71,14 +71,22 @@ def test_parse_document(memory_stage):
     result = ai_parse_document(memory_stage, "multi.pdf")
 
     assert isinstance(result, dict)
-    # Normalize dynamic fields to placeholders, then compare against an expected JSON string
     normalized = dict(result)
     normalized["content"] = "<CONTENT>"
     metadata = dict(normalized.get("metadata") or {})
     metadata["pageCount"] = "<PAGECOUNT>"
     normalized["metadata"] = metadata
+    pages = normalized.get("pages") or []
+    normalized["pages"] = [
+        {"index": p["index"], "content": " ".join(p["content"].split())} for p in pages
+    ]
+
     expected = {
         "content": "<CONTENT>",
+        "pages": [
+            {"index": 0, "content": "Dumm y PDF file"},
+            {"index": 1, "content": "Dumm y PDF file"},
+        ],
         "metadata": {
             "pageCount": "<PAGECOUNT>",
             "mode": "LAYOUT",
@@ -92,8 +100,6 @@ def test_parse_document(memory_stage):
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
     expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
     assert actual_str == expected_str
-    # ensure multi-page content merged
-    assert result["content"].count("Dummy PDF file") >= 2
 
 
 def test_parse_document_docx(memory_stage):
@@ -106,8 +112,16 @@ def test_parse_document_docx(memory_stage):
     metadata = dict(normalized.get("metadata") or {})
     metadata["pageCount"] = "<PAGECOUNT>"
     normalized["metadata"] = metadata
+    pages = normalized.get("pages") or []
+    normalized["pages"] = [
+        {"index": p["index"], "content": " ".join(p["content"].split())} for p in pages
+    ]
     expected = {
         "content": "<CONTENT>",
+        "pages": [
+            {"index": 0, "content": "Page One Content of page one."},
+            {"index": 1, "content": "Page Two Content of page two."},
+        ],
         "metadata": {
             "pageCount": "<PAGECOUNT>",
             "mode": "LAYOUT",

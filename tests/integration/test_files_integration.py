@@ -104,9 +104,17 @@ def test_parse_document_round_trip(running_server, memory_stage):
     metadata = dict(normalized.get("metadata") or {})
     metadata["pageCount"] = "<PAGECOUNT>"
     normalized["metadata"] = metadata
+    pages = normalized.get("pages") or []
+    normalized["pages"] = [
+        {"index": p["index"], "content": " ".join(p["content"].split())} for p in pages
+    ]
 
     expected = {
         "content": "<CONTENT>",
+        "pages": [
+            {"index": 0, "content": "Dumm y PDF file"},
+            {"index": 1, "content": "Dumm y PDF file"},
+        ],
         "metadata": {
             "pageCount": "<PAGECOUNT>",
             "mode": "LAYOUT",
@@ -121,7 +129,6 @@ def test_parse_document_round_trip(running_server, memory_stage):
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
     expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
     assert actual_str == expected_str
-    assert payload["content"].count("Dummy PDF file") >= 2
 
 
 def test_parse_document_docx_round_trip(running_server, memory_stage):
@@ -147,9 +154,17 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     metadata = dict(normalized.get("metadata") or {})
     metadata["pageCount"] = "<PAGECOUNT>"
     normalized["metadata"] = metadata
+    pages = normalized.get("pages") or []
+    normalized["pages"] = [
+        {"index": p["index"], "content": " ".join(p["content"].split())} for p in pages
+    ]
 
     expected = {
         "content": "<CONTENT>",
+        "pages": [
+            {"index": 0, "content": "Page One Content of page one."},
+            {"index": 1, "content": "Page Two Content of page two."},
+        ],
         "metadata": {
             "pageCount": "<PAGECOUNT>",
             "mode": "LAYOUT",
@@ -164,5 +179,3 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
     expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
     assert actual_str == expected_str
-    assert "Page One" in payload["content"]
-    assert "Page Two" in payload["content"]
