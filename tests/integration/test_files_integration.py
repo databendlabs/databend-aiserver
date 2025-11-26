@@ -56,7 +56,13 @@ def test_parse_document_round_trip(running_server, memory_stage):
     )
 
     assert len(result) == 1
-    payload = result[0]
+    payload_raw = result[0]
+    if isinstance(payload_raw, (bytes, bytearray)):
+        payload_raw = payload_raw.decode("utf-8")
+    if isinstance(payload_raw, str):
+        payload = json.loads(payload_raw)
+    else:
+        payload = payload_raw
     assert isinstance(payload, dict)
     normalized = dict(payload)
     normalized["content"] = "<CONTENT>"
@@ -91,7 +97,13 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     )
 
     assert len(result) == 1
-    payload = result[0]
+    payload_raw = result[0]
+    if isinstance(payload_raw, (bytes, bytearray)):
+        payload_raw = payload_raw.decode("utf-8")
+    if isinstance(payload_raw, str):
+        payload = json.loads(payload_raw)
+    else:
+        payload = payload_raw
     assert isinstance(payload, dict)
     normalized = dict(payload)
     normalized["content"] = "<CONTENT>"

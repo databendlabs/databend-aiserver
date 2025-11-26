@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 
 from databend_udf import StageLocation, udf
 from docling.document_converter import DocumentConverter
-from docling.models.base import ConversionResult
+from docling.datamodel.document import ConversionResult
 from opendal import exceptions as opendal_exceptions
 
 from databend_aiserver.stages.operator import (
