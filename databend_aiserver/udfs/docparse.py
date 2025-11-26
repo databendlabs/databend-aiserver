@@ -95,11 +95,11 @@ def _get_hf_tokenizer(model_name: str) -> HuggingFaceTokenizer:
 @udf(
     name="ai_parse_document",
     stage_refs=["stage"],
-    input_types=["STRING", "INT"],
+    input_types=["STRING"],
     result_type="VARIANT",
     io_threads=4,
 )
-def ai_parse_document(stage: StageLocation, path: str, chunk_size: Optional[int]) -> Dict[str, Any]:
+def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
     """Parse a document and return Snowflake-compatible layout output.
 
     Simplified semantics:
@@ -115,9 +115,8 @@ def ai_parse_document(stage: StageLocation, path: str, chunk_size: Optional[int]
         markdown = doc.export_to_markdown()
 
         # Docling chunking: chunk_size controls max_tokens; tokenizer aligned with embedding model
-        max_tokens = chunk_size if chunk_size and chunk_size > 0 else DEFAULT_CHUNK_SIZE
         tokenizer = _get_hf_tokenizer(DEFAULT_EMBED_MODEL)
-        chunker = HybridChunker(tokenizer=tokenizer, max_tokens=max_tokens)
+        chunker = HybridChunker(tokenizer=tokenizer, max_tokens=DEFAULT_CHUNK_SIZE)
 
         chunks = list(chunker.chunk(dl_doc=doc))
         pages: List[Dict[str, Any]] = [

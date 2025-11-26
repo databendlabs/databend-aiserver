@@ -67,7 +67,7 @@ def test_read_docx(memory_stage):
 
 def test_parse_document(memory_stage):
     _write_multipage_pdf(memory_stage, "multi.pdf")
-    result = ai_parse_document(memory_stage, "multi.pdf", 2048)
+    result = ai_parse_document(memory_stage, "multi.pdf")
 
     assert isinstance(result, dict)
     pages = [
@@ -93,7 +93,7 @@ def test_parse_document(memory_stage):
 
 def test_parse_document_docx(memory_stage):
     _write_multipage_docx(memory_stage, "multi.docx")
-    result = ai_parse_document(memory_stage, "multi.docx", 2048)
+    result = ai_parse_document(memory_stage, "multi.docx")
 
     assert isinstance(result, dict)
     pages = [
