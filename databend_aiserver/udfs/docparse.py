@@ -38,6 +38,7 @@ from databend_aiserver.stages.operator import (
     get_operator,
     resolve_stage_subpath,
 )
+from databend_aiserver.config import DEFAULT_EMBED_MODEL, DEFAULT_CHUNK_SIZE
 
 
 def _load_stage_file(stage: StageLocation, path: str) -> bytes:
@@ -82,7 +83,6 @@ def _convert_to_markdown(data: bytes, suffix: str) -> ConversionResult:
         return converter.convert(tmp_path)
 
 
-_DEFAULT_TOKENIZER_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 _TOKENIZER_CACHE: Dict[str, HuggingFaceTokenizer] = {}
 
 
@@ -115,8 +115,8 @@ def ai_parse_document(stage: StageLocation, path: str, chunk_size: Optional[int]
         markdown = doc.export_to_markdown()
 
         # Docling chunking: chunk_size controls max_tokens; tokenizer aligned with embedding model
-        max_tokens = chunk_size if chunk_size and chunk_size > 0 else None
-        tokenizer = _get_hf_tokenizer(_DEFAULT_TOKENIZER_MODEL)
+        max_tokens = chunk_size if chunk_size and chunk_size > 0 else DEFAULT_CHUNK_SIZE
+        tokenizer = _get_hf_tokenizer(DEFAULT_EMBED_MODEL)
         chunker = HybridChunker(tokenizer=tokenizer, max_tokens=max_tokens)
 
         chunks = list(chunker.chunk(dl_doc=doc))
