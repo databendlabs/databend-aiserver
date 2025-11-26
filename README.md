@@ -37,7 +37,10 @@ SELECT ai_embed_1024(doc_body) FROM docs_tbl;
 
 ## Tests
 ```bash
+# Full suite (CI should run this)
 uv run pytest
+
+# Quicker local loop (skips tests marked slow)
 uv run pytest -m "not slow"
 ```
 
