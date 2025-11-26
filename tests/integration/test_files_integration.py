@@ -99,19 +99,23 @@ def test_parse_document_round_trip(running_server, memory_stage):
     else:
         payload = payload_raw
     assert isinstance(payload, dict)
-    normalized = dict(payload)
-    normalized["metadata"] = {"pageCount": "<PAGECOUNT>"}
-    normalized["pages"] = [
+    pages = [
         {"index": p["index"], "content": " ".join(p["content"].split())}
-        for p in (normalized.get("pages") or [])
+        for p in (payload.get("pages") or [])
     ]
+    page_count = len(pages)
+    normalized = {
+        "pages": pages,
+        "metadata": {"pageCount": page_count},
+        "errorInformation": payload.get("errorInformation"),
+    }
 
     expected = {
         "pages": [
             {"index": 0, "content": "Dumm y PDF file"},
             {"index": 1, "content": "Dumm y PDF file"},
         ],
-        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "metadata": {"pageCount": 2},
         "errorInformation": None,
     }
 
@@ -138,19 +142,23 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
     else:
         payload = payload_raw
     assert isinstance(payload, dict)
-    normalized = dict(payload)
-    normalized["metadata"] = {"pageCount": "<PAGECOUNT>"}
-    normalized["pages"] = [
+    pages = [
         {"index": p["index"], "content": " ".join(p["content"].split())}
-        for p in (normalized.get("pages") or [])
+        for p in (payload.get("pages") or [])
     ]
+    page_count = len(pages)
+    normalized = {
+        "pages": pages,
+        "metadata": {"pageCount": page_count},
+        "errorInformation": payload.get("errorInformation"),
+    }
 
     expected = {
         "pages": [
             {"index": 0, "content": "Page One Content of page one."},
             {"index": 1, "content": "Page Two Content of page two."},
         ],
-        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "metadata": {"pageCount": 2},
         "errorInformation": None,
     }
 

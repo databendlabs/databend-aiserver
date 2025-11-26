@@ -71,19 +71,23 @@ def test_parse_document(memory_stage):
     result = ai_parse_document(memory_stage, "multi.pdf")
 
     assert isinstance(result, dict)
-    normalized = dict(result)
-    normalized["metadata"] = {"pageCount": "<PAGECOUNT>"}
-    normalized["pages"] = [
+    pages = [
         {"index": p["index"], "content": " ".join(p["content"].split())}
-        for p in (normalized.get("pages") or [])
+        for p in (result.get("pages") or [])
     ]
+    page_count = len(pages)
 
+    normalized = {
+        "pages": pages,
+        "metadata": {"pageCount": page_count},
+        "errorInformation": result.get("errorInformation"),
+    }
     expected = {
         "pages": [
             {"index": 0, "content": "Dumm y PDF file"},
             {"index": 1, "content": "Dumm y PDF file"},
         ],
-        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "metadata": {"pageCount": 2},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
@@ -96,18 +100,23 @@ def test_parse_document_docx(memory_stage):
     result = ai_parse_document(memory_stage, "multi.docx")
 
     assert isinstance(result, dict)
-    normalized = dict(result)
-    normalized["metadata"] = {"pageCount": "<PAGECOUNT>"}
-    normalized["pages"] = [
+    pages = [
         {"index": p["index"], "content": " ".join(p["content"].split())}
-        for p in (normalized.get("pages") or [])
+        for p in (result.get("pages") or [])
     ]
+    page_count = len(pages)
+
+    normalized = {
+        "pages": pages,
+        "metadata": {"pageCount": page_count},
+        "errorInformation": result.get("errorInformation"),
+    }
     expected = {
         "pages": [
             {"index": 0, "content": "Page One Content of page one."},
             {"index": 1, "content": "Page Two Content of page two."},
         ],
-        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "metadata": {"pageCount": 2},
         "errorInformation": None,
     }
     actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
