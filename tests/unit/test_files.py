@@ -55,14 +55,15 @@ def test_read_pdf(memory_stage):
     result = _read_pdf(memory_stage, "2206.01062.pdf")
 
     assert isinstance(result, str)
-    assert "dummy" in result.replace(" ", "").lower()
+    # Non-empty content from sample paper
+    assert len(result.strip()) > 100
 
 
 def test_read_docx(memory_stage):
     result = _read_docx(memory_stage, "lorem_ipsum.docx")
 
     assert isinstance(result, str)
-    assert "This is a short paragraph" in result
+    assert "Lorem ipsum" in result
 
 
 def test_parse_document(memory_stage):

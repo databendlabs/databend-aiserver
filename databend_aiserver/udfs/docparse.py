@@ -31,6 +31,7 @@ except Exception:  # pragma: no cover
     DocumentStream = None  # type: ignore
 from docling.chunking import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from transformers import AutoTokenizer
 from opendal import exceptions as opendal_exceptions
 
 from databend_aiserver.stages.operator import (
@@ -88,7 +89,8 @@ _TOKENIZER_CACHE: Dict[str, HuggingFaceTokenizer] = {}
 
 def _get_hf_tokenizer(model_name: str) -> HuggingFaceTokenizer:
     if model_name not in _TOKENIZER_CACHE:
-        _TOKENIZER_CACHE[model_name] = HuggingFaceTokenizer(tokenizer=model_name)
+        tok = AutoTokenizer.from_pretrained(model_name)
+        _TOKENIZER_CACHE[model_name] = HuggingFaceTokenizer(tokenizer=tok)
     return _TOKENIZER_CACHE[model_name]
 
 
