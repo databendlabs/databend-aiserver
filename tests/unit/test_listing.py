@@ -29,8 +29,8 @@ def test_list_stage_files(memory_stage):
     assert "lorem_ipsum.docx" in paths
     assert "subdir/note.txt" in paths
 
-    sample_entry = next(item for item in entries if item["path"] == "sample.pdf")
-    assert sample_entry.get("size", 0) > 0
+    pdf_entry = next(item for item in entries if item["path"] == "2206.01062.pdf")
+    assert pdf_entry.get("size", 0) > 0
     assert truncated is False
 
 

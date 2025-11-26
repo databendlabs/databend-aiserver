@@ -116,8 +116,9 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
         doc = result.document
         markdown = doc.export_to_markdown()
 
-        # Docling chunking: chunk_size controls max_tokens; tokenizer aligned with embedding model
+        # Docling chunking: tokenizer aligned with embedding model.
         tokenizer = _get_hf_tokenizer(DEFAULT_EMBED_MODEL)
+        # HybridChunker defaults max_tokens=256 if not provided; we set explicitly.
         chunker = HybridChunker(tokenizer=tokenizer, max_tokens=DEFAULT_CHUNK_SIZE)
 
         chunks = list(chunker.chunk(dl_doc=doc))
