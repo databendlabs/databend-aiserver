@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 from databend_udf.client import UDFClient
 
 from tests.integration.conftest import build_stage_mapping
@@ -56,5 +58,28 @@ def test_parse_document_round_trip(running_server, memory_stage):
     assert len(result) == 1
     payload = result[0]
     assert isinstance(payload, dict)
-    assert payload.get("errorInformation") is None
-    assert payload.get("content")
+    result_str = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    assert '"content":"' in result_str
+    assert '"errorInformation":null' in result_str
+    assert '"generator":"docling"' in result_str
+    assert '"mode":"LAYOUT"' in result_str
+    assert '"tablesFormat":"markdown"' in result_str
+
+
+def test_parse_document_docx_round_trip(running_server, memory_stage):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    result = client.call_function(
+        "ai_parse_document",
+        "sample.docx",
+        stage_locations=[build_stage_mapping(memory_stage)],
+    )
+
+    assert len(result) == 1
+    payload = result[0]
+    assert isinstance(payload, dict)
+    result_str = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    assert '"content":"' in result_str
+    assert '"errorInformation":null' in result_str
+    assert '"generator":"docling"' in result_str
+    assert '"mode":"LAYOUT"' in result_str
+    assert '"tablesFormat":"markdown"' in result_str

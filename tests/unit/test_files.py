@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 from databend_aiserver.udfs.files import _read_docx, _read_pdf
 from databend_aiserver.udfs.docparse import ai_parse_document
 
@@ -34,6 +36,23 @@ def test_parse_document(memory_stage):
     result = ai_parse_document(memory_stage, "sample.pdf")
 
     assert isinstance(result, dict)
-    assert result.get("errorInformation") is None
-    assert "content" in result and result["content"]
-    assert "metadata" in result and isinstance(result["metadata"], dict)
+    result_str = json.dumps(result, ensure_ascii=False, sort_keys=True)
+    assert isinstance(result_str, str)
+    assert '"content":"' in result_str
+    assert '"errorInformation":null' in result_str
+    assert '"generator":"docling"' in result_str
+    assert '"mode":"LAYOUT"' in result_str
+    assert '"tablesFormat":"markdown"' in result_str
+
+
+def test_parse_document_docx(memory_stage):
+    result = ai_parse_document(memory_stage, "sample.docx")
+
+    assert isinstance(result, dict)
+    result_str = json.dumps(result, ensure_ascii=False, sort_keys=True)
+    assert isinstance(result_str, str)
+    assert '"content":"' in result_str
+    assert '"errorInformation":null' in result_str
+    assert '"generator":"docling"' in result_str
+    assert '"mode":"LAYOUT"' in result_str
+    assert '"tablesFormat":"markdown"' in result_str
