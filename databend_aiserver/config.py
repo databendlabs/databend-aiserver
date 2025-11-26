@@ -9,4 +9,14 @@ DEFAULT_EMBED_MODEL = os.getenv("AISERVER_EMBED_MODEL", "Qwen/Qwen3-Embedding-0.
 DEFAULT_TOKENIZER_MODEL = DEFAULT_EMBED_MODEL
 
 # Default chunk size (tokens) for document parsing when not specified.
-DEFAULT_CHUNK_SIZE = int(os.getenv("AISERVER_CHUNK_SIZE", "2048"))
+# Aligned with embedding model context length; can be overridden via env.
+def _default_chunk_size(embed_model: str) -> int:
+    model_lower = embed_model.lower()
+    if "qwen3" in model_lower or "qwen" in model_lower:
+        return 32000  # Qwen3-Embedding context length
+    return 2048
+
+
+DEFAULT_CHUNK_SIZE = int(
+    os.getenv("AISERVER_CHUNK_SIZE", str(_default_chunk_size(DEFAULT_EMBED_MODEL)))
+)
