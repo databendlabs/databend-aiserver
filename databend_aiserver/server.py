@@ -22,8 +22,6 @@ from databend_udf import UDFServer
 
 from databend_aiserver.udfs import (
     ai_list_files,
-    ai_read_docx,
-    ai_read_pdf,
     ai_embed_1024,
     ai_parse_document,
 )
@@ -51,8 +49,6 @@ def create_server(
     )
     server = UDFServer(location, metric_location=metric_location)
     server.add_function(ai_list_files)
-    server.add_function(ai_read_pdf)
-    server.add_function(ai_read_docx)
     server.add_function(ai_embed_1024)
     server.add_function(ai_parse_document)
     return server

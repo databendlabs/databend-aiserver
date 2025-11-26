@@ -53,34 +53,6 @@ def _write_multipage_docx(stage, filename: str):
     operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
 
 
-def test_read_pdf_round_trip(running_server, memory_stage):
-    client = UDFClient(host="127.0.0.1", port=running_server)
-    result = client.call_function(
-        "ai_read_pdf",
-        "sample.pdf",
-        stage_locations=[build_stage_mapping(memory_stage)],
-    )
-
-    assert len(result) == 1
-    payload = result[0]
-    assert isinstance(payload, str)
-    assert "dummy" in payload.replace(" ", "").lower()
-
-
-def test_read_docx_round_trip(running_server, memory_stage):
-    client = UDFClient(host="127.0.0.1", port=running_server)
-    result = client.call_function(
-        "ai_read_docx",
-        "sample.docx",
-        stage_locations=[build_stage_mapping(memory_stage)],
-    )
-
-    assert len(result) == 1
-    payload = result[0]
-    assert isinstance(payload, str)
-    assert "This is a short paragraph" in payload
-
-
 def test_parse_document_round_trip(running_server, memory_stage):
     _write_multipage_pdf(memory_stage, "multi.pdf")
     client = UDFClient(host="127.0.0.1", port=running_server)
