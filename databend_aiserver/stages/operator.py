@@ -104,9 +104,9 @@ def _build_s3_options(storage: Mapping[str, Any]) -> Dict[str, Any]:
     if external_id:
         options["external_id"] = external_id
     if virtual_host_style is not None:
-        options["enable_virtual_host_style"] = _normalize_bool(virtual_host_style)
+        options["enable_virtual_host_style"] = "true" if _normalize_bool(virtual_host_style) else "false"
     if disable_loader is not None:
-        options["disable_credential_loader"] = _normalize_bool(disable_loader)
+        options["disable_credential_loader"] = "true" if _normalize_bool(disable_loader) else "false"
 
     return options
 
