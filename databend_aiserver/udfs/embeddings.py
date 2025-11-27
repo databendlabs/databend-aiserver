@@ -23,7 +23,7 @@ import logging
 from pathlib import Path
 
 from databend_udf import udf
-from databend_aiserver.config import DEFAULT_EMBED_MODEL
+from databend_aiserver.config import DEFAULT_EMBED_MODEL, AISERVER_CACHE_DIR
 from databend_aiserver.runtime import DeviceRequest, choose_device
 
 try:  # pragma: no cover - optional dependency
@@ -48,7 +48,7 @@ EXPECTED_DIMENSION = SUPPORTED_MODELS[0][2]
 
 # Cache directory under the repository for downloaded models to avoid polluting
 # the user's global cache and to make behaviour deterministic across runs.
-EMBED_CACHE_DIR = Path(__file__).resolve().parents[2] / ".hf-cache"
+EMBED_CACHE_DIR = AISERVER_CACHE_DIR / "hf"
 os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(EMBED_CACHE_DIR))
 os.environ.setdefault("TRANSFORMERS_CACHE", str(EMBED_CACHE_DIR))
 
