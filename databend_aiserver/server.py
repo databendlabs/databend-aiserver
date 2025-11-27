@@ -20,6 +20,7 @@ from typing import Optional
 
 from databend_udf import UDFServer
 
+from databend_aiserver.runtime import detect_runtime
 from databend_aiserver.udfs import (
     ai_list_files,
     ai_embed_1024,
@@ -47,6 +48,7 @@ def create_server(
     metric_location = (
         f"{host}:{metric_port}" if metric_port is not None else None
     )
+    detect_runtime()
     server = UDFServer(location, metric_location=metric_location)
     server.add_function(ai_list_files)
     server.add_function(ai_embed_1024)

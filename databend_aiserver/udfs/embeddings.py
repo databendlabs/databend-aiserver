@@ -21,9 +21,11 @@ import threading
 from typing import Dict, Iterable, List, Optional, Tuple, Sequence
 import logging
 from pathlib import Path
+from time import perf_counter
 
 from databend_udf import udf
-from databend_aiserver.config import DEFAULT_EMBED_MODEL
+from databend_aiserver.config import DEFAULT_EMBED_MODEL, AISERVER_CACHE_DIR
+from databend_aiserver.runtime import DeviceRequest, choose_device, get_runtime
 
 try:  # pragma: no cover - optional dependency
     import torch
@@ -47,7 +49,7 @@ EXPECTED_DIMENSION = SUPPORTED_MODELS[0][2]
 
 # Cache directory under the repository for downloaded models to avoid polluting
 # the user's global cache and to make behaviour deterministic across runs.
-EMBED_CACHE_DIR = Path(__file__).resolve().parents[2] / ".hf-cache"
+EMBED_CACHE_DIR = AISERVER_CACHE_DIR / "hf"
 os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(EMBED_CACHE_DIR))
 os.environ.setdefault("TRANSFORMERS_CACHE", str(EMBED_CACHE_DIR))
 
@@ -64,16 +66,6 @@ def _ensure_cache_directory() -> str:
     return str(EMBED_CACHE_DIR)
 
 
-def _resolve_device() -> str:
-    if torch is None:
-        return "cpu"
-    if torch.cuda.is_available():  # pragma: no cover - GPU not available in tests
-        return "cuda"
-    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():  # pragma: no cover - MPS seldom tested
-        return "mps"
-    return "cpu"
-
-
 class _EmbeddingBackend:
     def __init__(self, tokenizer, model, device: str):
         self.tokenizer = tokenizer
@@ -82,7 +74,7 @@ class _EmbeddingBackend:
         self._logger = logging.getLogger(__name__)
 
     @classmethod
-    def from_pretrained(cls, model_name: str, device: str) -> "_EmbeddingBackend":
+    def from_pretrained(cls, model_name: str, device: str, torch_dtype) -> "_EmbeddingBackend":
         if torch is None or AutoModel is None or AutoTokenizer is None:
             raise EmbeddingBackendError(
                 "Both torch and transformers must be installed to use embedding UDFs"
@@ -95,7 +87,6 @@ class _EmbeddingBackend:
             trust_remote_code=True,
             use_fast=False,  # fast tokenizer for Qwen3 embedding can be incompatible with tokenizers version
         )
-        torch_dtype = torch.float16 if device in {"cuda", "mps"} else torch.float32
         model = AutoModel.from_pretrained(
             model_name,
             cache_dir=cache_dir,
@@ -135,12 +126,18 @@ class _EmbeddingBackend:
 
 
 def _get_backend(model_name: str) -> _EmbeddingBackend:
-    device = _resolve_device()
-    cache_key = (model_name, device)
+    choice = choose_device(DeviceRequest(task="embedding"))
+    cache_key = (model_name, choice.device)
     with _BACKEND_LOCK:
         backend = _BACKEND_CACHE.get(cache_key)
         if backend is None:
-            backend = _EmbeddingBackend.from_pretrained(model_name, device)
+            backend = _EmbeddingBackend.from_pretrained(model_name, choice.device, choice.dtype)
+            logging.getLogger(__name__).info(
+                "Embedding backend created device=%s precision=%s reason=%s",
+                choice.device,
+                choice.precision,
+                choice.reason,
+            )
             _BACKEND_CACHE[cache_key] = backend
     return backend
 
@@ -179,10 +176,19 @@ def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
     Accepts a single string or a list of strings for batch embedding.
     """
 
+    start = perf_counter()
     if isinstance(text, list):
         texts = list(text)
     else:
         texts = [text]
+
+    runtime = get_runtime()
+    logging.getLogger(__name__).info(
+        "ai_embed_1024 start batch=%s runtime_device=%s kind=%s",
+        len(texts),
+        runtime.preferred_device,
+        runtime.device_kind,
+    )
 
     model_name, expected_dimension = _resolve_model(SUPPORTED_MODELS[0][0])
     backend = _get_backend(model_name)
@@ -200,4 +206,11 @@ def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
             )
         vectors.append(vector)
 
+    duration = perf_counter() - start
+    logging.getLogger(__name__).info(
+        "ai_embed_1024 batch=%s duration=%.3fs device=%s",
+        len(texts),
+        duration,
+        backend.device,
+    )
     return vectors

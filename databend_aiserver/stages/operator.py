@@ -20,7 +20,8 @@ import hashlib
 import json
 import logging
 import threading
-from typing import Any, Dict, Mapping, Tuple
+from pathlib import Path
+from typing import Any, Callable, Dict, Mapping, Tuple
 
 from databend_udf import StageLocation
 from opendal import Operator, exceptions as opendal_exceptions
@@ -204,3 +205,29 @@ def as_directory_path(path: str) -> str:
     if not path:
         return ""
     return path if path.endswith("/") else f"{path}/"
+
+
+def load_stage_file(stage: StageLocation, path: str, *, on_missing: Callable[[str], Exception] | None = None) -> bytes:
+    try:
+        operator = get_operator(stage)
+    except StageConfigurationError as exc:
+        raise ValueError(str(exc)) from exc
+
+    resolved = resolve_stage_subpath(stage, path)
+    if not resolved:
+        raise ValueError("A file path must be provided")
+    try:
+        data = operator.read(resolved)
+        if isinstance(data, memoryview):
+            data = data.tobytes()
+        return data
+    except opendal_exceptions.NotFound as exc:
+        if on_missing:
+            raise on_missing(resolved)
+        raise FileNotFoundError(f"Stage object '{resolved}' not found") from exc
+    except opendal_exceptions.Error as exc:
+        raise RuntimeError(f"Failed to read '{resolved}' from stage") from exc
+
+
+def stage_file_suffix(path: str) -> str:
+    return Path(path).suffix or ".bin"

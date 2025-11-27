@@ -25,6 +25,7 @@ from typing import Optional
 
 from prometheus_client import start_http_server as start_prometheus_server
 
+from databend_aiserver.runtime import detect_runtime
 from databend_aiserver.server import create_server
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,9 @@ def _configure_logging(level: str) -> None:
 def main(argv: Optional[list[str]] = None) -> int:
     args = _parse_args(argv)
     _configure_logging(args.log_level)
+
+    # Probe runtime once so UDFs share the same device view.
+    detect_runtime()
 
     if args.metrics_port is not None:
         start_prometheus_server(args.metrics_port)
