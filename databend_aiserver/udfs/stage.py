@@ -138,7 +138,8 @@ def ai_list_files(
     truncated = False
 
     try:
-        entries = list(op.list(prefix))
+        # Use scan() instead of list() to recursively list all files
+        entries = list(op.scan(prefix))
         if limit > 0 and len(entries) > limit:
             entries = entries[:limit]
             truncated = True
@@ -151,13 +152,16 @@ def ai_list_files(
         # Mode for directories typically has specific bits set, or path ends with /
         is_dir = entry.path.endswith('/')
         
+        # Convert mode to string if it exists, otherwise None
+        mode_str = str(metadata.mode) if metadata.mode is not None else None
+        
         yield {
             "stage_name": stage_location.stage_name,
             "relative_path": stage_location.relative_path,
             "path": entry.path,
             "is_dir": is_dir,
             "size": metadata.content_length,
-            "mode": metadata.mode,
+            "mode": mode_str,
             "content_type": metadata.content_type,
             "etag": metadata.etag,
             "truncated": truncated,
