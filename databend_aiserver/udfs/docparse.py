@@ -33,7 +33,7 @@ from docling.chunking import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 from transformers import AutoTokenizer
 from opendal import exceptions as opendal_exceptions
-from time import perf_counter
+from time import perf_counter, perf_counter_ns
 
 from databend_aiserver.runtime import DeviceRequest, choose_device, get_runtime
 from databend_aiserver.stages.operator import load_stage_file, stage_file_suffix
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 class _ParserBackend(Protocol):
     name: str
-    def convert(self, stage_location: StageLocation, path: str) -> ConversionResult:
+    def convert(self, stage_location: StageLocation, path: str) -> tuple[ConversionResult, int]:
         ...
 
 
@@ -121,7 +121,7 @@ class _DoclingBackend:
             )
             return DocumentConverter()
 
-    def convert(self, stage_location: StageLocation, path: str) -> ConversionResult:
+    def convert(self, stage_location: StageLocation, path: str) -> tuple[ConversionResult, int]:
         t_start = perf_counter()
         raw = load_stage_file(stage_location, path)
         suffix = stage_file_suffix(path)
@@ -140,7 +140,7 @@ class _DoclingBackend:
                     len(raw),
                     perf_counter() - t_start,
                 )
-                return result
+                return result, len(raw)
             except Exception:
                 pass
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -153,7 +153,7 @@ class _DoclingBackend:
                 len(raw),
                 perf_counter() - t_start,
             )
-            return result
+            return result, len(raw)
 
 
 def _get_doc_parser_backend() -> _ParserBackend:
@@ -192,7 +192,7 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
     - Includes ``pages`` array with per-page content when possible.
     """
     try:
-        t_total = perf_counter()
+        t_total_ns = perf_counter_ns()
         runtime = get_runtime()
         logger.info(
             "ai_parse_document start path=%s runtime_device=%s kind=%s",
@@ -201,7 +201,11 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
             runtime.capabilities.device_kind,
         )
         backend = _get_doc_parser_backend()
-        result = backend.convert(stage_location, path)
+
+        t_convert_start_ns = perf_counter_ns()
+        result, file_size = backend.convert(stage_location, path)
+        t_convert_end_ns = perf_counter_ns()
+
         doc = result.document
         markdown = doc.export_to_markdown()
 
@@ -223,32 +227,52 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
             pages = [{"index": 0, "content": markdown}]
             fallback = True
 
-        page_count = len(pages)
+        chunk_count = len(pages)
 
-        # Snowflake-compatible (page_split=true) shape:
-        # { "pages": [...], "metadata": {"pageCount": N}, "errorInformation": null }
-        payload = {
-            "pages": pages,
+        t_chunk_end_ns = perf_counter_ns()
+        duration_ms = (t_chunk_end_ns - t_total_ns) / 1_000_000.0
+
+        # Output shape:
+        # { "chunks": [...], "metadata": {...}, "error_information": [...] }
+        payload: Dict[str, Any] = {
+            "chunks": pages,
             "metadata": {
-                "pageCount": page_count,
-                "chunkingFallback": fallback,
+                "chunk_count": chunk_count,
+                "path": path,
+                "filename": Path(path).name,
+                "file_size": file_size if file_size is not None else 0,
+                "duration_ms": duration_ms,
+                "timings_ms": {
+                    "convert": (t_convert_end_ns - t_convert_start_ns) / 1_000_000.0,
+                    "chunk": (t_chunk_end_ns - t_convert_end_ns) / 1_000_000.0,
+                    "total": duration_ms,
+                },
+                "chunk_size": DEFAULT_CHUNK_SIZE,
+                "version": 1,
             },
-            "errorInformation": (
-                {} if not fallback else {"type": "ChunkingFallback", "message": "chunker failed or returned empty; returned full markdown instead"}
-            ),
         }
+        if fallback:
+            payload["error_information"] = [
+                {
+                    "type": "ChunkingFallback",
+                    "message": "chunker failed or returned empty; returned full markdown instead",
+                }
+            ]
         logger.info(
-            "ai_parse_document path=%s backend=%s pages=%s fallback=%s duration=%.3fs",
+            "ai_parse_document path=%s backend=%s chunks=%s fallback=%s duration_ms=%.1f",
             path,
             getattr(backend, "name", "unknown"),
-            page_count,
+            chunk_count,
             fallback,
-            perf_counter() - t_total,
+            duration_ms,
         )
         return payload
     except Exception as exc:  # pragma: no cover - defensive for unexpected docling errors
         return {
-            "content": "",
-            "metadata": {},
-            "errorInformation": {"message": str(exc), "type": exc.__class__.__name__},
+            "chunks": [],
+            "metadata": {
+                "path": path,
+                "filename": Path(path).name,
+            },
+            "error_information": [{"message": str(exc), "type": exc.__class__.__name__}],
         }

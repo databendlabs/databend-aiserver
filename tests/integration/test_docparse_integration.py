@@ -44,14 +44,16 @@ def _call_docparse(client: UDFClient, path: str, memory_stage):
 
 
 def _normalize_payload(payload):
-    pages = [
-        {"index": p["index"], "content": "<PAGE_CONTENT>"}
-        for p in (payload.get("pages") or [])
-    ]
+    chunks = payload.get("chunks") or []
+    metadata = payload.get("metadata") or {}
     return {
-        "pages": pages,
-        "metadata": {"pageCount": "<PAGECOUNT>"},
-        "errorInformation": payload.get("errorInformation") or {},
+        "chunk_count": metadata.get("chunk_count"),
+        "chunk_len": len(chunks),
+        "has_path": "path" in metadata,
+        "has_filename": "filename" in metadata,
+        "has_file_size": "file_size" in metadata,
+        "has_duration": "duration_ms" in metadata,
+        "has_errors": "error_information" in payload,
     }
 
 
@@ -59,47 +61,39 @@ def test_docparse_pdf_structure(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
     payload = _call_docparse(client, "2206.01062.pdf", memory_stage)
     
-    assert "pages" in payload
-    assert isinstance(payload["pages"], list)
-    assert "metadata" in payload
-    assert "pageCount" in payload["metadata"]
-    assert "errorInformation" in payload
+    norm = _normalize_payload(payload)
+    assert norm["chunk_count"] == norm["chunk_len"]
+    assert norm["has_path"]
+    assert norm["has_filename"]
+    assert norm["has_file_size"]
+    assert norm["has_duration"]
+    assert not norm["has_errors"]
 
 
 def test_docparse_pdf_content(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
     payload = _call_docparse(client, "2206.01062.pdf", memory_stage)
     
-    normalized = _normalize_payload(payload)
-    page_count = len(normalized["pages"])
-    expected = {
-        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
-        "metadata": {"pageCount": "<PAGECOUNT>"},
-        "errorInformation": {},
-    }
-    assert json.dumps(normalized, sort_keys=True) == json.dumps(expected, sort_keys=True)
+    assert "chunks" in payload and isinstance(payload["chunks"], list)
+    assert payload["metadata"]["chunk_count"] == len(payload["chunks"])
 
 
 def test_docparse_docx_structure(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
     payload = _call_docparse(client, "lorem_ipsum.docx", memory_stage)
     
-    assert "pages" in payload
-    assert isinstance(payload["pages"], list)
-    assert "metadata" in payload
-    assert "pageCount" in payload["metadata"]
-    assert "errorInformation" in payload
+    norm = _normalize_payload(payload)
+    assert norm["chunk_count"] == norm["chunk_len"]
+    assert norm["has_path"]
+    assert norm["has_filename"]
+    assert norm["has_file_size"]
+    assert norm["has_duration"]
+    assert not norm["has_errors"]
 
 
 def test_docparse_docx_content(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
     payload = _call_docparse(client, "lorem_ipsum.docx", memory_stage)
     
-    normalized = _normalize_payload(payload)
-    page_count = len(normalized["pages"])
-    expected = {
-        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
-        "metadata": {"pageCount": "<PAGECOUNT>"},
-        "errorInformation": {},
-    }
-    assert json.dumps(normalized, sort_keys=True) == json.dumps(expected, sort_keys=True)
+    assert "chunks" in payload and isinstance(payload["chunks"], list)
+    assert payload["metadata"]["chunk_count"] == len(payload["chunks"])
