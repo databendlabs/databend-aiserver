@@ -219,7 +219,9 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
                 "pageCount": page_count,
                 "chunkingFallback": fallback,
             },
-            "errorInformation": None if not fallback else {"type": "ChunkingFallback", "message": "chunker failed or returned empty; returned full markdown instead"},
+            "errorInformation": (
+                {} if not fallback else {"type": "ChunkingFallback", "message": "chunker failed or returned empty; returned full markdown instead"}
+            ),
         }
         logger.info(
             "ai_parse_document path=%s backend=%s pages=%s fallback=%s duration=%.3fs",
