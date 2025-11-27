@@ -18,17 +18,26 @@ from databend_aiserver.udfs.embeddings import SUPPORTED_MODELS
 
 
 @pytest.mark.slow
-def test_vector_embedding_round_trip(running_server):
+def test_embedding_dimension(running_server):
     client = UDFClient(host="127.0.0.1", port=running_server)
     result = client.call_function(
         "ai_embed_1024",
         "embedded text",
     )
-
     assert len(result) == 1
+    assert len(result[0]) == 1024
+
+
+@pytest.mark.slow
+def test_embedding_data_type(running_server):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    result = client.call_function(
+        "ai_embed_1024",
+        "embedded text",
+    )
     payload = result[0]
     assert isinstance(payload, list)
-    assert len(payload) == 1024
+    assert all(isinstance(x, float) for x in payload)
 
 
 @pytest.mark.slow
@@ -43,15 +52,4 @@ def test_vector_embedding_batch_round_trip(running_server):
     for payload in result:
         assert isinstance(payload, list)
         assert len(payload) == 1024
-
-
-def test_vector_embedding_rejects_unknown_model(running_server):
-    client = UDFClient(host="127.0.0.1", port=running_server)
-    result = client.call_function(
-        "ai_embed_1024",
-        "text",
-    )
-
-    assert len(result) == 1
-    assert isinstance(result[0], list)
-    assert len(result[0]) == 1024
+        assert all(isinstance(x, float) for x in payload)

@@ -41,27 +41,44 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         default=None,
         help="Port for Prometheus metrics exporter (disabled when omitted).",
     )
-    parser.add_argument(
-        "--log-level",
-        default="INFO",
-        help="Python logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).",
-    )
     return parser.parse_args(argv)
 
 
-def _configure_logging(level: str) -> None:
+def _configure_logging() -> str:
+    """Configure logging to console and file with INFO level and rotation."""
+    from logging.handlers import RotatingFileHandler
+    from pathlib import Path
+    
+    # Create logs directory
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / "databend-aiserver.log"
+    
+    handlers = [
+        logging.StreamHandler(),
+        RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5,
+        ),
+    ]
+    
     logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
+        level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=handlers,
     )
+    return str(log_file)
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     args = _parse_args(argv)
-    _configure_logging(args.log_level)
+    log_file_path = _configure_logging()
 
     # Probe runtime once so UDFs share the same device view.
     detect_runtime()
+    
+    logger.info("Logging to file: %s", log_file_path)
 
     if args.metrics_port is not None:
         start_prometheus_server(args.metrics_port)

@@ -55,11 +55,21 @@ def _normalize_payload(payload):
     }
 
 
-def test_parse_document_pdf_round_trip(running_server, memory_stage):
+def test_docparse_pdf_structure(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
-
     payload = _call_docparse(client, "2206.01062.pdf", memory_stage)
+    
+    assert "pages" in payload
+    assert isinstance(payload["pages"], list)
+    assert "metadata" in payload
+    assert "pageCount" in payload["metadata"]
+    assert "errorInformation" in payload
 
+
+def test_docparse_pdf_content(running_server, memory_stage):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    payload = _call_docparse(client, "2206.01062.pdf", memory_stage)
+    
     normalized = _normalize_payload(payload)
     page_count = len(normalized["pages"])
     expected = {
@@ -67,15 +77,24 @@ def test_parse_document_pdf_round_trip(running_server, memory_stage):
         "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": {},
     }
-
     assert json.dumps(normalized, sort_keys=True) == json.dumps(expected, sort_keys=True)
 
 
-def test_parse_document_docx_round_trip(running_server, memory_stage):
+def test_docparse_docx_structure(running_server, memory_stage):
     client = UDFClient(host="127.0.0.1", port=running_server)
-
     payload = _call_docparse(client, "lorem_ipsum.docx", memory_stage)
+    
+    assert "pages" in payload
+    assert isinstance(payload["pages"], list)
+    assert "metadata" in payload
+    assert "pageCount" in payload["metadata"]
+    assert "errorInformation" in payload
 
+
+def test_docparse_docx_content(running_server, memory_stage):
+    client = UDFClient(host="127.0.0.1", port=running_server)
+    payload = _call_docparse(client, "lorem_ipsum.docx", memory_stage)
+    
     normalized = _normalize_payload(payload)
     page_count = len(normalized["pages"])
     expected = {
@@ -83,5 +102,4 @@ def test_parse_document_docx_round_trip(running_server, memory_stage):
         "metadata": {"pageCount": "<PAGECOUNT>"},
         "errorInformation": {},
     }
-
     assert json.dumps(normalized, sort_keys=True) == json.dumps(expected, sort_keys=True)

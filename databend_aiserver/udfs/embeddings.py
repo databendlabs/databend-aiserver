@@ -51,7 +51,7 @@ EXPECTED_DIMENSION = SUPPORTED_MODELS[0][2]
 # the user's global cache and to make behaviour deterministic across runs.
 EMBED_CACHE_DIR = AISERVER_CACHE_DIR / "hf"
 os.environ.setdefault("HUGGINGFACE_HUB_CACHE", str(EMBED_CACHE_DIR))
-os.environ.setdefault("TRANSFORMERS_CACHE", str(EMBED_CACHE_DIR))
+os.environ.setdefault("HF_HOME", str(EMBED_CACHE_DIR))
 
 _BACKEND_CACHE: Dict[Tuple[str, str], "_EmbeddingBackend"] = {}
 _BACKEND_LOCK = threading.Lock()
@@ -165,13 +165,7 @@ def _resolve_model(model: str) -> Tuple[str, int]:
     batch_mode=True,
 )
 def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
-    """SQL definition:
-
-    ```sql
-    CREATE FUNCTION ai_embed_1024(text STRING)
-        RETURNS ARRAY(FLOAT NULL);
-    ```
-
+    """
     Uses the default embedding model (alias 'qwen' → Qwen/Qwen3-Embedding-0.6B).
     Accepts a single string or a list of strings for batch embedding.
     """

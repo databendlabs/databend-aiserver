@@ -36,3 +36,7 @@ include = ["databend_aiserver*"]
 markers = [
     "slow: marks tests as slow and requiring Hugging Face model downloads",
 ]
+filterwarnings = [
+    "ignore:Field `generate_table_images` is deprecated:DeprecationWarning",
+    "ignore:Field `annotations` is deprecated:DeprecationWarning",
+]

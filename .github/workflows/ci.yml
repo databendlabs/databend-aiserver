@@ -26,4 +26,4 @@ jobs:
         env:
           HF_HOME: ${{ github.workspace }}/.hf-cache
           TRANSFORMERS_CACHE: ${{ github.workspace }}/.hf-cache
-        run: uv run pytest
+        run: uv run pytest -v

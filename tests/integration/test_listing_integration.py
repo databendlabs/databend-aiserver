@@ -17,31 +17,40 @@ from databend_udf.client import UDFClient
 from tests.integration.conftest import build_stage_mapping
 
 
-def test_list_stage_files_round_trip(running_server, memory_stage):
+def _get_listing(running_server, memory_stage, limit=0):
     client = UDFClient(host="127.0.0.1", port=running_server)
-    rows = client.call_function(
+    return client.call_function(
         "ai_list_files",
-        0,
+        limit,
         stage_locations=[build_stage_mapping(memory_stage)],
     )
 
+
+def test_list_stage_files_content(running_server, memory_stage):
+    rows = _get_listing(running_server, memory_stage)
     assert len(rows) >= 3
     paths = {row["path"] for row in rows}
-
     assert {"2206.01062.pdf", "lorem_ipsum.docx", "subdir/note.txt"}.issubset(paths)
+
+
+def test_list_stage_files_metadata(running_server, memory_stage):
+    rows = _get_listing(running_server, memory_stage)
     assert {row["stage"] for row in rows} == {memory_stage.stage_name}
     assert {row["relative_path"] for row in rows} == {memory_stage.relative_path}
-    assert all(row["truncated"] is False for row in rows)
-    assert all("is_dir" in row for row in rows)
+
+
+def test_list_stage_files_schema(running_server, memory_stage):
+    rows = _get_listing(running_server, memory_stage)
+    for row in rows:
+        assert "is_dir" in row
+        assert row["size"] is not None
+        assert row["mode"] is not None
+        assert row["content_type"] is not None
+        assert row["etag"] is not None
+        assert row["truncated"] is False
 
 
 def test_list_stage_files_truncation(running_server, memory_stage):
-    client = UDFClient(host="127.0.0.1", port=running_server)
-    rows = client.call_function(
-        "ai_list_files",
-        1,
-        stage_locations=[build_stage_mapping(memory_stage)],
-    )
-
+    rows = _get_listing(running_server, memory_stage, limit=1)
     assert len(rows) == 1
     assert rows[0]["truncated"] is True

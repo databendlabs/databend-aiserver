@@ -26,7 +26,7 @@ import logging
 import os
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Optional
 
 from databend_aiserver.config import (
@@ -235,7 +235,7 @@ def detect_runtime(force_device: str | None = None, disable_gpu: bool = False) -
             supports_fp16=fp16,
             supports_bf16=bf16,
             onnx_providers=onnx_providers,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
 
         _RUNTIME = Runtime(capabilities)

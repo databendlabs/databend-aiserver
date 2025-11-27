@@ -102,28 +102,7 @@ def _collect_stage_files(
     return entries, truncated
 
 
-# SQL snippet for registering this UDTF in Databend.
-# Replace <udf_host>:<port> with your running databend-aiserver address.
-AI_LIST_FILES_CREATE_SQL = """
-CREATE OR REPLACE FUNCTION ai_list_files(
-    stage STAGE_LOCATION,
-    limit INT
-)
-RETURNS TABLE (
-    stage         VARCHAR,
-    relative_path VARCHAR,
-    path          VARCHAR,
-    is_dir        BOOLEAN,
-    size          BIGINT NULL,
-    mode          VARCHAR NULL,
-    content_type  VARCHAR NULL,
-    etag          VARCHAR NULL,
-    truncated     BOOLEAN
-)
-LANGUAGE python
-HANDLER = 'ai_list_files'
-ADDRESS = 'http://<udf_host>:<port>';
-"""
+
 
 
 @udf(
@@ -134,10 +113,10 @@ ADDRESS = 'http://<udf_host>:<port>';
         ("relative_path", "VARCHAR"),
         ("path", "VARCHAR"),
         ("is_dir", "BOOLEAN"),
-        ("size", "BIGINT NULL"),
-        ("mode", "VARCHAR NULL"),
-        ("content_type", "VARCHAR NULL"),
-        ("etag", "VARCHAR NULL"),
+        ("size", "BIGINT"),
+        ("mode", "VARCHAR"),
+        ("content_type", "VARCHAR"),
+        ("etag", "VARCHAR"),
         ("truncated", "BOOLEAN"),
     ],
     name="ai_list_files",
@@ -145,23 +124,7 @@ ADDRESS = 'http://<udf_host>:<port>';
 def ai_list_files(
     stage: StageLocation, limit: Optional[int]
 ) -> Iterable[Dict[str, Any]]:
-    """SQL definition:
-
-    ```sql
-    CREATE FUNCTION ai_list_files(stage STAGE_LOCATION, limit INT)
-        RETURNS (
-            stage VARCHAR,
-            relative_path VARCHAR,
-            path VARCHAR,
-            is_dir BOOLEAN,
-            size BIGINT NULL,
-            mode VARCHAR NULL,
-            content_type VARCHAR NULL,
-            etag VARCHAR NULL,
-            truncated BOOLEAN
-        );
-    ```
-    """
+    """List objects in a stage."""
 
     logging.getLogger(__name__).info(
         "ai_list_files start stage=%s relative=%s limit=%s",
