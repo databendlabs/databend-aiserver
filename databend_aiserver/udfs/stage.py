@@ -83,6 +83,10 @@ def _collect_stage_files(
                 file_info["content_type"] = metadata.content_type
             if metadata.etag:
                 file_info["etag"] = metadata.etag
+            if hasattr(metadata, "last_modified"):
+                lm = metadata.last_modified
+                if lm:
+                    file_info["last_modified"] = lm
 
         entries.append(file_info)
         if max_entries is not None and len(entries) >= max_entries:

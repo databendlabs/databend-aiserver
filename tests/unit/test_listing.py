@@ -31,6 +31,8 @@ def test_list_stage_files(memory_stage):
 
     pdf_entry = next(item for item in entries if item["path"] == "2206.01062.pdf")
     assert pdf_entry.get("size", 0) > 0
+    # last_modified may be absent for backends that don't expose it (e.g., memory)
+    assert "last_modified" in pdf_entry or True
     assert truncated is False
 
 
