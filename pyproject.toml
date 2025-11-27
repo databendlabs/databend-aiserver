@@ -20,6 +20,13 @@ dependencies = [
     "torch==2.9.1",
     "accelerate==1.12.0",
     "docling==2.63.0",
+    # ASR / Whisper stack (installed by default so `uv sync` is enough)
+    "openai-whisper>=20231117",
+    "imageio-ffmpeg>=0.5.1",
+    "numba>=0.62.1",
+    "llvmlite>=0.45.1",
+    "more-itertools>=10.8.0",
+    "tiktoken>=0.12.0",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +35,10 @@ asr = [
     "openai-whisper>=20231117",
     # Includes a statically linked ffmpeg binary so deployments don't require a system package.
     "imageio-ffmpeg>=0.5.1",
+    "numba>=0.62.1",
+    "llvmlite>=0.45.1",
+    "more-itertools>=10.8.0",
+    "tiktoken>=0.12.0",
 ]
 
 [project.scripts]
