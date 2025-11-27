@@ -64,10 +64,10 @@ def _collect_stage_files(
         file_info: Dict[str, Any] = {
             "path": relative_path or path,
             "is_dir": is_dir,
-            "size": None,
-            "mode": None,
-            "content_type": None,
-            "etag": None,
+            "size": 0,
+            "mode": "",
+            "content_type": "",
+            "etag": "",
         }
 
         try:
