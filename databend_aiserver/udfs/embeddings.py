@@ -21,6 +21,7 @@ import threading
 from typing import Dict, Iterable, List, Optional, Tuple, Sequence
 import logging
 from pathlib import Path
+from time import perf_counter
 
 from databend_udf import udf
 from databend_aiserver.config import DEFAULT_EMBED_MODEL, AISERVER_CACHE_DIR
@@ -175,6 +176,7 @@ def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
     Accepts a single string or a list of strings for batch embedding.
     """
 
+    start = perf_counter()
     if isinstance(text, list):
         texts = list(text)
     else:
@@ -196,4 +198,11 @@ def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
             )
         vectors.append(vector)
 
+    duration = perf_counter() - start
+    logging.getLogger(__name__).info(
+        "ai_embed_1024 batch=%s duration=%.3fs device=%s",
+        len(texts),
+        duration,
+        backend.device,
+    )
     return vectors

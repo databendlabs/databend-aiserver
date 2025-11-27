@@ -32,6 +32,7 @@ from docling.chunking import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 from transformers import AutoTokenizer
 from opendal import exceptions as opendal_exceptions
+from time import perf_counter
 
 from databend_aiserver.runtime import DeviceRequest, choose_device, get_runtime
 from databend_aiserver.stages.operator import load_stage_file, stage_file_suffix
@@ -107,6 +108,7 @@ class _DoclingBackend:
             return DocumentConverter()
 
     def convert(self, stage: StageLocation, path: str) -> ConversionResult:
+        t_start = perf_counter()
         raw = load_stage_file(stage, path)
         suffix = stage_file_suffix(path)
         converter = self._build_converter()
@@ -117,13 +119,27 @@ class _DoclingBackend:
                     name=f"doc{suffix}",
                     mime_type=mimetypes.guess_type(f"file{suffix}")[0] or "application/octet-stream",
                 )
-                return converter.convert(stream)
+                result = converter.convert(stream)
+                logger.info(
+                    "Docling convert path=%s stream=memory bytes=%s duration=%.3fs",
+                    path,
+                    len(raw),
+                    perf_counter() - t_start,
+                )
+                return result
             except Exception:
                 pass
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir) / f"doc{suffix}"
             tmp_path.write_bytes(raw)
-            return converter.convert(tmp_path)
+            result = converter.convert(tmp_path)
+            logger.info(
+                "Docling convert path=%s stream=tempfile bytes=%s duration=%.3fs",
+                path,
+                len(raw),
+                perf_counter() - t_start,
+            )
+            return result
 
 
 def _get_doc_parser_backend() -> _ParserBackend:
@@ -162,6 +178,7 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
     - Includes ``pages`` array with per-page content when possible.
     """
     try:
+        t_total = perf_counter()
         backend = _get_doc_parser_backend()
         result = backend.convert(stage, path)
         doc = result.document
@@ -189,7 +206,7 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
 
         # Snowflake-compatible (page_split=true) shape:
         # { "pages": [...], "metadata": {"pageCount": N}, "errorInformation": null }
-        return {
+        payload = {
             "pages": pages,
             "metadata": {
                 "pageCount": page_count,
@@ -197,6 +214,15 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
             },
             "errorInformation": None if not fallback else {"type": "ChunkingFallback", "message": "chunker failed or returned empty; returned full markdown instead"},
         }
+        logger.info(
+            "ai_parse_document path=%s backend=%s pages=%s fallback=%s duration=%.3fs",
+            path,
+            getattr(backend, "name", "unknown"),
+            page_count,
+            fallback,
+            perf_counter() - t_total,
+        )
+        return payload
     except Exception as exc:  # pragma: no cover - defensive for unexpected docling errors
         return {
             "content": "",
