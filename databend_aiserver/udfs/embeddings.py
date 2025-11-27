@@ -25,7 +25,7 @@ from time import perf_counter
 
 from databend_udf import udf
 from databend_aiserver.config import DEFAULT_EMBED_MODEL, AISERVER_CACHE_DIR
-from databend_aiserver.runtime import DeviceRequest, choose_device
+from databend_aiserver.runtime import DeviceRequest, choose_device, get_runtime
 
 try:  # pragma: no cover - optional dependency
     import torch
@@ -181,6 +181,14 @@ def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
         texts = list(text)
     else:
         texts = [text]
+
+    runtime = get_runtime()
+    logging.getLogger(__name__).info(
+        "ai_embed_1024 start batch=%s runtime_device=%s kind=%s",
+        len(texts),
+        runtime.preferred_device,
+        runtime.device_kind,
+    )
 
     model_name, expected_dimension = _resolve_model(SUPPORTED_MODELS[0][0])
     backend = _get_backend(model_name)

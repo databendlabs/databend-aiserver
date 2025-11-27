@@ -179,6 +179,13 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
     """
     try:
         t_total = perf_counter()
+        runtime = get_runtime()
+        logger.info(
+            "ai_parse_document start path=%s runtime_device=%s kind=%s",
+            path,
+            runtime.preferred_device,
+            runtime.device_kind,
+        )
         backend = _get_doc_parser_backend()
         result = backend.convert(stage, path)
         doc = result.document
