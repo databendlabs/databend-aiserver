@@ -52,3 +52,20 @@ def memory_stage() -> StageLocation:
     operator.write(f"{RELATIVE_PATH}/lorem_ipsum.docx", DOCX_SRC.read_bytes())
     operator.write(f"{RELATIVE_PATH}/subdir/note.txt", b"hello from memory")
     return stage
+
+
+@pytest.fixture
+def memory_stage_with_root() -> StageLocation:
+    stage = StageLocation(
+        name="stage",
+        stage_name="memory_stage_root",
+        stage_type="External",
+        storage={"type": "memory", "root": "s3://wizardbend/dataset"},
+        relative_path=RELATIVE_PATH,
+        raw_info={},
+    )
+
+    operator = get_operator(stage)
+    operator.create_dir(f"{RELATIVE_PATH}/")
+    operator.write(f"{RELATIVE_PATH}/2206.01062.pdf", PDF_SRC.read_bytes())
+    return stage

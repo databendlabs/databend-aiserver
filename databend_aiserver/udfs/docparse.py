@@ -239,6 +239,11 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
         # Output shape:
         # { "chunks": [...], "metadata": {...}, "error_information": [...] }
         resolved_path = resolve_stage_subpath(stage_location, path)
+        root_prefix = ""
+        storage_root = stage_location.storage.get("root") if stage_location.storage else ""
+        if storage_root:
+            root_prefix = storage_root.rstrip("/")
+        full_path = f"{root_prefix}/{resolved_path}" if root_prefix else resolved_path
 
         # Keep metadata first for predictable JSON ordering.
         payload: Dict[str, Any] = {
@@ -248,7 +253,7 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
                 "duration_ms": duration_ms,
                 "file_size": file_size if file_size is not None else 0,
                 "filename": Path(path).name,
-                "path": resolved_path or path,
+                "path": full_path or path,
                 "timings_ms": {
                     "convert": (t_convert_end_ns - t_convert_start_ns) / 1_000_000.0,
                     "chunk": (t_chunk_end_ns - t_convert_end_ns) / 1_000_000.0,

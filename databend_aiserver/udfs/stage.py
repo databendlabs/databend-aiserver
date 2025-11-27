@@ -30,6 +30,15 @@ from databend_aiserver.stages.operator import (
 )
 
 
+def _format_last_modified(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    # OpenDAL returns datetime objects; fall back to string otherwise.
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 def _collect_stage_files(
     stage_location: StageLocation, max_files: Optional[int]
 ) -> tuple[List[Dict[str, Any]], bool]:
@@ -85,9 +94,7 @@ def _collect_stage_files(
             if metadata.etag:
                 file_info["etag"] = metadata.etag
             if hasattr(metadata, "last_modified"):
-                lm = metadata.last_modified
-                if lm:
-                    file_info["last_modified"] = lm
+                file_info["last_modified"] = _format_last_modified(metadata.last_modified)
 
         entries.append(file_info)
         if max_entries is not None and len(entries) >= max_entries:
@@ -167,7 +174,7 @@ def ai_list_files(
             
             # Convert mode to string if it exists, otherwise None
             mode_str = str(metadata.mode) if metadata.mode is not None else None
-            last_modified = getattr(metadata, "last_modified", None)
+            last_modified = _format_last_modified(getattr(metadata, "last_modified", None))
             
             yield {
                 "stage_name": stage_location.stage_name,
