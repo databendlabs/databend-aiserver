@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+from collections import OrderedDict
 import mimetypes
 import os
 import tempfile
@@ -246,23 +247,29 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
         full_path = f"{root_prefix}/{resolved_path}" if root_prefix else resolved_path
 
         # Keep metadata first for predictable JSON ordering.
-        payload: Dict[str, Any] = {
-            "metadata": {
-                "chunk_count": chunk_count,
-                "chunk_size": DEFAULT_CHUNK_SIZE,
-                "duration_ms": duration_ms,
-                "file_size": file_size if file_size is not None else 0,
-                "filename": Path(path).name,
-                "path": full_path or path,
-                "timings_ms": {
-                    "convert": (t_convert_end_ns - t_convert_start_ns) / 1_000_000.0,
-                    "chunk": (t_chunk_end_ns - t_convert_end_ns) / 1_000_000.0,
-                    "total": duration_ms,
-                },
-                "version": 1,
-            },
-            "chunks": pages,
-        }
+        payload: Dict[str, Any] = OrderedDict(
+            [
+                (
+                    "metadata",
+                    {
+                        "chunk_count": chunk_count,
+                        "chunk_size": DEFAULT_CHUNK_SIZE,
+                        "duration_ms": duration_ms,
+                        "file_size": file_size if file_size is not None else 0,
+                        "filename": Path(path).name,
+                        "path": full_path or path,
+                        "timings_ms": {
+                            "convert": (t_convert_end_ns - t_convert_start_ns)
+                            / 1_000_000.0,
+                            "chunk": (t_chunk_end_ns - t_convert_end_ns) / 1_000_000.0,
+                            "total": duration_ms,
+                        },
+                        "version": 1,
+                    },
+                ),
+                ("chunks", pages),
+            ]
+        )
         if fallback:
             payload["error_information"] = [
                 {
@@ -280,11 +287,19 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
         )
         return payload
     except Exception as exc:  # pragma: no cover - defensive for unexpected docling errors
-        return {
-            "chunks": [],
-            "metadata": {
-                "path": path,
-                "filename": Path(path).name,
-            },
-            "error_information": [{"message": str(exc), "type": exc.__class__.__name__}],
-        }
+        return OrderedDict(
+            [
+                (
+                    "metadata",
+                    {
+                        "path": path,
+                        "filename": Path(path).name,
+                    },
+                ),
+                ("chunks", []),
+                (
+                    "error_information",
+                    [{"message": str(exc), "type": exc.__class__.__name__}],
+                ),
+            ]
+        )
