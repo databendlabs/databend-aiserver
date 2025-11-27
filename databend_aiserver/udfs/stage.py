@@ -114,7 +114,7 @@ def _collect_stage_files(
         ("mode", "VARCHAR"),
         ("content_type", "VARCHAR"),
         ("etag", "VARCHAR"),
-        ("truncated", "BOOLEAN"),
+        ("last_modified", "TIMESTAMP"),
     ],
     name="ai_list_files",
 )
@@ -162,6 +162,7 @@ def ai_list_files(
             
             # Convert mode to string if it exists, otherwise None
             mode_str = str(metadata.mode) if metadata.mode is not None else None
+            last_modified = getattr(metadata, "last_modified", None)
             
             yield {
                 "stage_name": stage_location.stage_name,
@@ -172,10 +173,9 @@ def ai_list_files(
                 "mode": mode_str,
                 "content_type": metadata.content_type,
                 "etag": metadata.etag,
-                "truncated": False,
+                "last_modified": last_modified,
             }
             
     except Exception as e:
         logging.getLogger(__name__).error("Error listing files: %s", e)
         # Stop yielding
-

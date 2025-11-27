@@ -53,12 +53,10 @@ def test_list_stage_files_schema(running_server, memory_stage):
         assert "mode" in row
         assert "content_type" in row  # May be None
         assert "etag" in row  # May be None
-        assert row["truncated"] is False
+        assert "last_modified" in row
 
 
 def test_list_stage_files_truncation(running_server, memory_stage):
     rows = _get_listing(running_server, memory_stage, max_files=1)
     assert len(rows) == 1
-    # With lazy iteration, we can't easily know if result is truncated for all rows
-    # without buffering. Prioritizing performance over this flag.
-    assert rows[0]["truncated"] is False
+    assert "last_modified" in rows[0]
