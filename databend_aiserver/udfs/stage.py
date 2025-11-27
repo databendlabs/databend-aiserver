@@ -147,11 +147,15 @@ def ai_list_files(
 
     for entry in entries:
         metadata = op.stat(entry.path)
+        # Check if directory using mode (opendal.Metadata doesn't have is_dir())
+        # Mode for directories typically has specific bits set, or path ends with /
+        is_dir = entry.path.endswith('/')
+        
         yield {
             "stage_name": stage_location.stage_name,
             "relative_path": stage_location.relative_path,
             "path": entry.path,
-            "is_dir": metadata.is_dir(),
+            "is_dir": is_dir,
             "size": metadata.content_length,
             "mode": metadata.mode,
             "content_type": metadata.content_type,
