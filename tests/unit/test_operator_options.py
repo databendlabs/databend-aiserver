@@ -19,11 +19,12 @@ def test_s3_options_default_to_anonymous_without_creds():
     opts = _build_s3_options({"type": "s3", "bucket": "public-bucket"})
 
     assert opts["allow_anonymous"] == "true"
-    assert opts["disable_credential_loader"] == "true"
+    assert opts["disable_config_load"] == "true"
+    assert opts["disable_ec2_metadata"] == "true"
     assert opts["region"] == "us-east-1"
 
 
-def test_s3_options_do_not_force_anonymous_when_creds_present():
+def test_s3_options_allow_anonymous_even_with_creds():
     opts = _build_s3_options(
         {
             "type": "s3",
@@ -33,8 +34,9 @@ def test_s3_options_do_not_force_anonymous_when_creds_present():
         }
     )
 
-    assert "allow_anonymous" not in opts
-    assert "disable_credential_loader" not in opts
+    assert opts["allow_anonymous"] == "true"
+    assert "disable_config_load" not in opts
+    assert "disable_ec2_metadata" not in opts
 
 
 def test_s3_options_respect_explicit_flags():

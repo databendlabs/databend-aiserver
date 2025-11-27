@@ -117,10 +117,14 @@ def _build_s3_options(storage: Mapping[str, Any]) -> Dict[str, Any]:
     if virtual_host_style is not None:
         options["enable_virtual_host_style"] = "true" if _normalize_bool(virtual_host_style) else "false"
     if disable_loader is not None:
-        options["disable_credential_loader"] = "true" if _normalize_bool(disable_loader) else "false"
-    if allow_anonymous is not None:
-        # Allow anonymous access to public buckets when explicitly requested.
-        options["allow_anonymous"] = "true" if _normalize_bool(allow_anonymous) else "false"
+        if _normalize_bool(disable_loader):
+            # Align with Databend server: stop loading creds from env/profile/IMDS.
+            options["disable_config_load"] = "true"
+            options["disable_ec2_metadata"] = "true"
+        else:
+            options["disable_credential_loader"] = "false"
+    # Allow anonymous access to public buckets; Databend server always enables it.
+    options["allow_anonymous"] = "true" if allow_anonymous is None else ("true" if _normalize_bool(allow_anonymous) else "false")
 
     return options
 
