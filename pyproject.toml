@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Databend Labs" }]
 dependencies = [
-    "databend-udf==0.2.13",
+    "databend-udf==0.2.14",
     "opendal==0.45.1",
     "pypdf==4.0.0",
     "python-docx==1.2.0",
