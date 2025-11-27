@@ -36,7 +36,11 @@ from opendal import exceptions as opendal_exceptions
 from time import perf_counter, perf_counter_ns
 
 from databend_aiserver.runtime import DeviceRequest, choose_device, get_runtime
-from databend_aiserver.stages.operator import load_stage_file, stage_file_suffix
+from databend_aiserver.stages.operator import (
+    load_stage_file,
+    stage_file_suffix,
+    resolve_stage_subpath,
+)
 from databend_aiserver.config import DEFAULT_EMBED_MODEL, DEFAULT_CHUNK_SIZE
 
 try:
@@ -234,22 +238,25 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
 
         # Output shape:
         # { "chunks": [...], "metadata": {...}, "error_information": [...] }
+        resolved_path = resolve_stage_subpath(stage_location, path)
+
+        # Keep metadata first for predictable JSON ordering.
         payload: Dict[str, Any] = {
-            "chunks": pages,
             "metadata": {
                 "chunk_count": chunk_count,
-                "path": path,
-                "filename": Path(path).name,
-                "file_size": file_size if file_size is not None else 0,
+                "chunk_size": DEFAULT_CHUNK_SIZE,
                 "duration_ms": duration_ms,
+                "file_size": file_size if file_size is not None else 0,
+                "filename": Path(path).name,
+                "path": resolved_path or path,
                 "timings_ms": {
                     "convert": (t_convert_end_ns - t_convert_start_ns) / 1_000_000.0,
                     "chunk": (t_chunk_end_ns - t_convert_end_ns) / 1_000_000.0,
                     "total": duration_ms,
                 },
-                "chunk_size": DEFAULT_CHUNK_SIZE,
                 "version": 1,
             },
+            "chunks": pages,
         }
         if fallback:
             payload["error_information"] = [
