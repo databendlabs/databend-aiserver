@@ -75,6 +75,34 @@ def memory_stage() -> StageLocation:
 
 
 @pytest.fixture
+def fs_stage(tmp_path) -> StageLocation:
+    """Create a stage using fs storage to test real opendal API behavior."""
+    clear_operator_cache()
+    
+    # Create test directory structure
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    subdir = data_dir / "subdir"
+    subdir.mkdir()
+    
+    # Write test files
+    (data_dir / "2206.01062.pdf").write_bytes(PDF_SRC.read_bytes())
+    (data_dir / "lorem_ipsum.docx").write_bytes(DOCX_SRC.read_bytes())
+    (subdir / "note.txt").write_bytes(b"hello from integration")
+    
+    stage = StageLocation(
+        name="stage_location",
+        stage_name="fs_stage",
+        stage_type="External",
+        storage={"type": "fs", "root": str(tmp_path)},
+        relative_path="data",
+        raw_info={},
+    )
+    yield stage
+    clear_operator_cache()
+
+
+@pytest.fixture
 def running_server(memory_stage: StageLocation):
     for collector in list(REGISTRY._collector_to_names.keys()):
         try:
