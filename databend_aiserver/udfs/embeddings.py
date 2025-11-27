@@ -186,8 +186,8 @@ def ai_embed_1024(text: Sequence[str] | str) -> List[List[float]]:
     logging.getLogger(__name__).info(
         "ai_embed_1024 start batch=%s runtime_device=%s kind=%s",
         len(texts),
-        runtime.preferred_device,
-        runtime.device_kind,
+        runtime.capabilities.preferred_device,
+        runtime.capabilities.device_kind,
     )
 
     model_name, expected_dimension = _resolve_model(SUPPORTED_MODELS[0][0])

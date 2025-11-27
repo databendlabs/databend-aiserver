@@ -15,7 +15,7 @@
 """Runtime capability detection shared by all UDFs.
 
 This module runs a one-time probe at process start and exposes a read-only
-``RuntimeCapabilities`` that UDFs can consult to pick devices/dtypes. The
+``Runtime`` object that UDFs can consult to pick devices/dtypes. The
 runtime module deliberately avoids making policy decisions for specific UDFs;
 it only reports what is available and preferred based on environment hints.
 """
@@ -28,6 +28,12 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Optional
+
+from databend_aiserver.config import (
+    AISERVER_CACHE_DIR,
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_EMBED_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +92,35 @@ class RuntimeCapabilities:
     timestamp: datetime
 
 
-_RUNTIME: Optional[RuntimeCapabilities] = None
+class Runtime:
+    """Encapsulates runtime capabilities and configuration."""
+
+    def __init__(self, capabilities: RuntimeCapabilities):
+        self.capabilities = capabilities
+        self.cache_dir = AISERVER_CACHE_DIR
+        self.default_embed_model = DEFAULT_EMBED_MODEL
+        self.default_chunk_size = DEFAULT_CHUNK_SIZE
+
+    def log_info(self) -> None:
+        """Log runtime information and configuration."""
+        c = self.capabilities
+        logger.info(
+            "Runtime detected: device_kind=%s preferred=%s visible=%s memory_mb=%s torch=%s fp16=%s bf16=%s onnx_providers=%s",
+            c.device_kind,
+            c.preferred_device,
+            ",".join(c.visible_devices),
+            c.memory_mb,
+            c.torch_available,
+            c.supports_fp16,
+            c.supports_bf16,
+            c.onnx_providers,
+        )
+        logger.info("Configuration: cache_dir=%s", self.cache_dir)
+        logger.info("Configuration: default_embed_model=%s", self.default_embed_model)
+        logger.info("Configuration: default_chunk_size=%s", self.default_chunk_size)
+
+
+_RUNTIME: Optional[Runtime] = None
 _LOCK = threading.Lock()
 
 
@@ -171,7 +205,7 @@ def _detect_onnx_providers() -> list[str]:
         return []
 
 
-def detect_runtime(force_device: str | None = None, disable_gpu: bool = False) -> RuntimeCapabilities:
+def detect_runtime(force_device: str | None = None, disable_gpu: bool = False) -> Runtime:
     """Probe runtime capabilities once and cache the result.
 
     Environment overrides:
@@ -192,7 +226,7 @@ def detect_runtime(force_device: str | None = None, disable_gpu: bool = False) -
         )
         onnx_providers = _detect_onnx_providers()
 
-        _RUNTIME = RuntimeCapabilities(
+        capabilities = RuntimeCapabilities(
             device_kind=device_kind,
             preferred_device=preferred_device,
             visible_devices=visible_devices,
@@ -204,53 +238,47 @@ def detect_runtime(force_device: str | None = None, disable_gpu: bool = False) -
             timestamp=datetime.utcnow(),
         )
 
-        logger.info(
-            "Runtime detected: device_kind=%s preferred=%s visible=%s memory_mb=%s torch=%s fp16=%s bf16=%s onnx_providers=%s",
-            device_kind,
-            preferred_device,
-            ",".join(visible_devices),
-            memory_mb,
-            torch_available,
-            fp16,
-            bf16,
-            onnx_providers,
-        )
+        _RUNTIME = Runtime(capabilities)
+        _RUNTIME.log_info()
 
         return _RUNTIME
 
 
-def get_runtime() -> RuntimeCapabilities:
+def get_runtime() -> Runtime:
     if _RUNTIME is None:
         raise RuntimeError("detect_runtime() must be called before accessing runtime capabilities")
     return _RUNTIME
 
 
-def _device_available(device: str, runtime: RuntimeCapabilities, req: DeviceRequest) -> bool:
+def _device_available(device: str, runtime: Runtime, req: DeviceRequest) -> bool:
+    c = runtime.capabilities
     if device.startswith("cuda"):
-        return req.allow_gpu and runtime.device_kind == "cuda"
+        return req.allow_gpu and c.device_kind == "cuda"
     if device == "mps":
-        return req.allow_mps and runtime.device_kind == "mps"
+        return req.allow_mps and c.device_kind == "mps"
     if device.startswith("rocm"):
-        return req.allow_gpu and runtime.device_kind == "rocm"
+        return req.allow_gpu and c.device_kind == "rocm"
     return True  # cpu
 
 
-def _pick_precision(device: str, runtime: RuntimeCapabilities, req: DeviceRequest):
+def _pick_precision(device: str, runtime: Runtime, req: DeviceRequest):
+    c = runtime.capabilities
     if torch is None:
         return None, "none"
     if device == "cpu":
         return torch.float32, "fp32"
-    if req.prefer_fp16 and runtime.supports_fp16:
+    if req.prefer_fp16 and c.supports_fp16:
         return torch.float16, "fp16"
-    if req.prefer_bf16 and runtime.supports_bf16:
+    if req.prefer_bf16 and c.supports_bf16:
         return torch.bfloat16, "bf16"
     return torch.float32, "fp32"
 
 
-def choose_device(req: DeviceRequest, runtime: RuntimeCapabilities | None = None) -> DeviceChoice:
+def choose_device(req: DeviceRequest, runtime: Runtime | None = None) -> DeviceChoice:
     """Compute the best device for a UDF based on runtime capabilities and request hints."""
 
     rt = runtime or get_runtime()
+    c = rt.capabilities
 
     # 1) explicit override
     if req.explicit:
@@ -262,12 +290,12 @@ def choose_device(req: DeviceRequest, runtime: RuntimeCapabilities | None = None
         reason = "auto"
 
     # 2) runtime preferred GPU
-    if rt.device_kind == "cuda" and req.allow_gpu:
-        dtype, prec = _pick_precision(rt.preferred_device, rt, req)
-        return DeviceChoice(rt.preferred_device, dtype, prec, reason + " -> cuda")
+    if c.device_kind == "cuda" and req.allow_gpu:
+        dtype, prec = _pick_precision(c.preferred_device, rt, req)
+        return DeviceChoice(c.preferred_device, dtype, prec, reason + " -> cuda")
 
     # 3) runtime preferred MPS
-    if rt.device_kind == "mps" and req.allow_mps:
+    if c.device_kind == "mps" and req.allow_mps:
         dtype, prec = _pick_precision("mps", rt, req)
         return DeviceChoice("mps", dtype, prec, reason + " -> mps")
 

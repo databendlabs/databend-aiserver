@@ -85,8 +85,8 @@ class _DoclingBackend:
 
     def _select_ocr_provider(self) -> Optional[str]:
         runtime = get_runtime()
-        providers = runtime.onnx_providers
-        if runtime.device_kind == "cuda" and "CUDAExecutionProvider" in providers:
+        providers = runtime.capabilities.onnx_providers
+        if runtime.capabilities.device_kind == "cuda" and "CUDAExecutionProvider" in providers:
             choice = "CUDAExecutionProvider"
         else:
             choice = "CPUExecutionProvider"
@@ -183,8 +183,8 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
         logger.info(
             "ai_parse_document start path=%s runtime_device=%s kind=%s",
             path,
-            runtime.preferred_device,
-            runtime.device_kind,
+            runtime.capabilities.preferred_device,
+            runtime.capabilities.device_kind,
         )
         backend = _get_doc_parser_backend()
         result = backend.convert(stage, path)

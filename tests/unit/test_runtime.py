@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from types import SimpleNamespace
+from datetime import datetime, timezone
 
 import pytest
 
@@ -28,11 +29,12 @@ def test_detect_runtime_cpu_when_torch_missing(monkeypatch):
     monkeypatch.setattr(runtime, "torch", None, raising=False)
     result = runtime.detect_runtime()
 
-    assert result.device_kind == "cpu"
-    assert result.preferred_device == "cpu"
-    assert result.torch_available is False
-    assert result.supports_fp16 is False
-    assert result.supports_bf16 is False
+    c = result.capabilities
+    assert c.device_kind == "cpu"
+    assert c.preferred_device == "cpu"
+    assert c.torch_available is False
+    assert c.supports_fp16 is False
+    assert c.supports_bf16 is False
 
 
 def test_detect_runtime_disable_gpu_even_if_cuda_available(monkeypatch):
@@ -68,18 +70,19 @@ def test_detect_runtime_disable_gpu_even_if_cuda_available(monkeypatch):
 
     result = runtime.detect_runtime(disable_gpu=True)
 
-    assert result.device_kind == "cpu"
-    assert result.preferred_device == "cpu"
-    assert result.torch_available is True
-    assert result.supports_fp16 is False
-    assert result.supports_bf16 is False
+    c = result.capabilities
+    assert c.device_kind == "cpu"
+    assert c.preferred_device == "cpu"
+    assert c.torch_available is True
+    assert c.supports_fp16 is False
+    assert c.supports_bf16 is False
 
 
 def test_choose_device_explicit_cpu_overrides_gpu(monkeypatch):
     fake_torch = SimpleNamespace(float16="f16", bfloat16="bf16", float32="f32")
     monkeypatch.setattr(runtime, "torch", fake_torch, raising=False)
 
-    rt = runtime.RuntimeCapabilities(
+    caps = runtime.RuntimeCapabilities(
         device_kind="cuda",
         preferred_device="cuda:0",
         visible_devices=["cuda:0"],
@@ -88,8 +91,9 @@ def test_choose_device_explicit_cpu_overrides_gpu(monkeypatch):
         supports_fp16=True,
         supports_bf16=True,
         onnx_providers=[],
-        timestamp=runtime.datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
+    rt = runtime.Runtime(caps)
 
     choice = runtime.choose_device(runtime.DeviceRequest(task="embedding", explicit="cpu"), runtime=rt)
 
@@ -102,7 +106,7 @@ def test_choose_device_prefers_cuda_with_fp16(monkeypatch):
     fake_torch = SimpleNamespace(float16="f16", bfloat16="bf16", float32="f32")
     monkeypatch.setattr(runtime, "torch", fake_torch, raising=False)
 
-    rt = runtime.RuntimeCapabilities(
+    caps = runtime.RuntimeCapabilities(
         device_kind="cuda",
         preferred_device="cuda:0",
         visible_devices=["cuda:0"],
@@ -111,8 +115,9 @@ def test_choose_device_prefers_cuda_with_fp16(monkeypatch):
         supports_fp16=True,
         supports_bf16=False,
         onnx_providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
-        timestamp=runtime.datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
+    rt = runtime.Runtime(caps)
 
     choice = runtime.choose_device(runtime.DeviceRequest(task="docling"), runtime=rt)
 
