@@ -102,14 +102,11 @@ def _collect_stage_files(
     return entries, truncated
 
 
-
-
-
 @udf(
-    stage_refs=["stage"],
+    stage_refs=["stage_location"],
     input_types=["INT"],
     result_type=[
-        ("stage", "VARCHAR"),
+        ("stage_name", "VARCHAR"),
         ("relative_path", "VARCHAR"),
         ("path", "VARCHAR"),
         ("is_dir", "BOOLEAN"),
@@ -122,22 +119,41 @@ def _collect_stage_files(
     name="ai_list_files",
 )
 def ai_list_files(
-    stage: StageLocation, limit: Optional[int]
+    stage_location: StageLocation, limit: Optional[int]
 ) -> Iterable[Dict[str, Any]]:
     """List objects in a stage."""
 
     logging.getLogger(__name__).info(
         "ai_list_files start stage=%s relative=%s limit=%s",
-        stage.stage_name,
-        stage.relative_path,
+        stage_location.stage_name,
+        stage_location.relative_path,
         limit,
     )
-    entries, truncated = _collect_stage_files(stage, limit)
-    static_values = {
-        "stage": stage.stage_name,
-        "relative_path": stage.relative_path,
-        "truncated": truncated,
-    }
+
+    if limit is None or limit <= 0:
+        limit = 0
+
+    op = get_operator(stage_location)
+    prefix = resolve_stage_subpath(stage_location)
+    truncated = False
+
+    try:
+        entries = list(op.list(prefix))
+        if limit > 0 and len(entries) > limit:
+            entries = entries[:limit]
+            truncated = True
+    except Exception:
+        entries = []
 
     for entry in entries:
-        yield {**static_values, **entry}
+        yield {
+            "stage_name": stage_location.stage_name,
+            "relative_path": stage_location.relative_path,
+            "path": entry.path,
+            "is_dir": entry.metadata.is_dir(),
+            "size": entry.metadata.content_length,
+            "mode": entry.metadata.mode,
+            "content_type": entry.metadata.content_type,
+            "etag": entry.metadata.etag,
+            "truncated": truncated,
+        }
