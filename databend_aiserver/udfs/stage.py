@@ -68,6 +68,7 @@ def _collect_stage_files(
             "mode": "",
             "content_type": "",
             "etag": "",
+            "last_modified": None,
         }
 
         try:
