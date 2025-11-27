@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "databend-aiserver"
-version = "0.1.0"
+version = "0.1.1"
 description = "Databend AI Server: bridge object storage and AI workloads via UDFs."
 readme = "README.md"
 requires-python = ">=3.10"
