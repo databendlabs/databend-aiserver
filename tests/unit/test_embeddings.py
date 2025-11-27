@@ -57,3 +57,16 @@ def test_vector_embed_text_batch_inputs():
     for vector in result:
         assert len(vector) == EXPECTED_DIMENSION
         assert all(isinstance(v, float) for v in vector)
+
+
+def test_vector_result_type():
+    # Verify that the UDF result type is correctly set to VECTOR(1024)
+    # This ensures that databend-udf parses it correctly (if it validates on definition)
+    # or at least that the string is passed correctly.
+    # The result type is parsed into _result_schema
+    assert len(ai_embed_1024._result_schema) == 1
+    field = ai_embed_1024._result_schema[0]
+    # Check if it is a fixed size list of size 1024
+    import pyarrow as pa
+    assert pa.types.is_fixed_size_list(field.type)
+    assert field.type.list_size == 1024
