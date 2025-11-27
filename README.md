@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION ai_list_files(stage_location STAGE_LOCATION, max_file
 RETURNS TABLE (stage_name VARCHAR, relative_path VARCHAR, path VARCHAR, is_dir BOOLEAN, size BIGINT, mode VARCHAR, content_type VARCHAR, etag VARCHAR, truncated BOOLEAN)
 LANGUAGE PYTHON HANDLER = 'ai_list_files' ADDRESS = '<your-ai-server-address>';
 
-CREATE OR REPLACE FUNCTION ai_embed_1024(VARCHAR)
+CREATE OR REPLACE FUNCTION ai_embed_1024(text VARCHAR)
 RETURNS VECTOR(1024)
 LANGUAGE PYTHON HANDLER = 'ai_embed_1024' ADDRESS = '<your-ai-server-address>';
 
