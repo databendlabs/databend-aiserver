@@ -22,7 +22,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
 from databend_udf import StageLocation, udf
-from docling.document_converter import DocumentConverter
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.datamodel.base_models import InputFormat
 from docling.datamodel.document import ConversionResult
 try:
     from docling.datamodel.document import DocumentStream
@@ -39,10 +40,16 @@ from databend_aiserver.stages.operator import load_stage_file, stage_file_suffix
 from databend_aiserver.config import DEFAULT_EMBED_MODEL, DEFAULT_CHUNK_SIZE
 
 try:
-    from docling_core.types import AcceleratorOptions, AcceleratorDevice
+    # Preferred: docling's public accelerator API (propagates through pipeline options).
+    from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
 except Exception:
-    AcceleratorOptions = None  # type: ignore
-    AcceleratorDevice = None  # type: ignore
+    try:
+        # Fallback for older installs.
+        from docling_core.types import AcceleratorOptions, AcceleratorDevice
+    except Exception:
+        AcceleratorOptions = None  # type: ignore
+        AcceleratorDevice = None  # type: ignore
+from docling.datamodel.pipeline_options import ThreadedPdfPipelineOptions
 
 logger = logging.getLogger(__name__)
 
@@ -94,16 +101,23 @@ class _DoclingBackend:
         return choice
 
     def _build_converter(self):
-        kwargs: Dict[str, Any] = {}
+        # Docling expects accelerator via pipeline options, not constructor kwargs.
+        format_options: Dict[InputFormat, Any] = {}
         if self.accel is not None:
-            kwargs["accelerator"] = self.accel
-        if self.ocr_provider:
-            kwargs["ocr_provider"] = self.ocr_provider
+            pdf_opts = ThreadedPdfPipelineOptions()
+            pdf_opts.accelerator_options = self.accel
+            format_options[InputFormat.PDF] = PdfFormatOption(
+                pipeline_options=pdf_opts
+            )
+
         try:
-            return DocumentConverter(**kwargs)
+            return DocumentConverter(
+                format_options=format_options if format_options else None
+            )
         except TypeError:
+            # Extremely old docling builds may not accept format_options; fall back.
             logger.warning(
-                "Installed docling version does not support accelerator/ocr_provider kwargs; using defaults"
+                "Installed docling version does not support format_options; using defaults"
             )
             return DocumentConverter()
 
