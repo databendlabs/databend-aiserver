@@ -146,14 +146,30 @@ def ai_list_files(
         entries = []
 
     for entry in entries:
+        # Get metadata using stat() since Entry no longer has metadata attribute
+        try:
+            metadata = op.stat(entry.path)
+            is_dir = metadata.is_dir()
+            size = metadata.content_length
+            mode = metadata.mode
+            content_type = metadata.content_type
+            etag = metadata.etag
+        except Exception:
+            # Fallback if stat fails
+            is_dir = entry.path.endswith('/')
+            size = None
+            mode = None
+            content_type = None
+            etag = None
+        
         yield {
             "stage_name": stage_location.stage_name,
             "relative_path": stage_location.relative_path,
             "path": entry.path,
-            "is_dir": entry.metadata.is_dir(),
-            "size": entry.metadata.content_length,
-            "mode": entry.metadata.mode,
-            "content_type": entry.metadata.content_type,
-            "etag": entry.metadata.etag,
+            "is_dir": is_dir,
+            "size": size,
+            "mode": mode,
+            "content_type": content_type,
+            "etag": etag,
             "truncated": truncated,
         }
