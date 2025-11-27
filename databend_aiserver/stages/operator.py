@@ -217,7 +217,10 @@ def load_stage_file(stage: StageLocation, path: str, *, on_missing: Callable[[st
     if not resolved:
         raise ValueError("A file path must be provided")
     try:
-        return operator.read(resolved)
+        data = operator.read(resolved)
+        if isinstance(data, memoryview):
+            data = data.tobytes()
+        return data
     except opendal_exceptions.NotFound as exc:
         if on_missing:
             raise on_missing(resolved)
