@@ -218,12 +218,17 @@ def detect_runtime(force_device: str | None = None, disable_gpu: bool = False) -
         if _RUNTIME is not None:
             return _RUNTIME
 
+        logger.info("Detecting runtime capabilities...")
+        
         env_force = _parse_force_device(force_device) or _parse_force_device(os.getenv("AISERVER_DEVICE"))
         disable = disable_gpu or _env_bool("AISERVER_DISABLE_GPU")
 
+        logger.info("Probing torch device availability...")
         device_kind, preferred_device, visible_devices, memory_mb, torch_available, fp16, bf16 = _detect_torch_device(
             env_force, disable
         )
+        
+        logger.info("Probing ONNX runtime providers...")
         onnx_providers = _detect_onnx_providers()
 
         capabilities = RuntimeCapabilities(
