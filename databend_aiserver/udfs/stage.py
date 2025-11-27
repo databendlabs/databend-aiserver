@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import logging
+from time import perf_counter
 from typing import Any, Dict, Iterable, List, Optional
 
 from databend_udf import StageLocation, udf
@@ -32,6 +34,8 @@ def _collect_stage_files(
     stage: StageLocation, limit: Optional[int]
 ) -> tuple[List[Dict[str, Any]], bool]:
     """List objects stored under a Databend stage."""
+
+    t_start = perf_counter()
 
     try:
         operator = get_operator(stage)
@@ -84,6 +88,16 @@ def _collect_stage_files(
         if max_entries is not None and len(entries) >= max_entries:
             truncated = True
             break
+
+    duration = perf_counter() - t_start
+    logging.getLogger(__name__).info(
+        "ai_list_files scanned entries=%s truncated=%s stage=%s base=%s duration=%.3fs",
+        len(entries),
+        truncated,
+        stage.stage_name,
+        base_prefix,
+        duration,
+    )
 
     return entries, truncated
 
@@ -149,6 +163,12 @@ def ai_list_files(
     ```
     """
 
+    logging.getLogger(__name__).info(
+        "ai_list_files start stage=%s relative=%s limit=%s",
+        stage.stage_name,
+        stage.relative_path,
+        limit,
+    )
     entries, truncated = _collect_stage_files(stage, limit)
     static_values = {
         "stage": stage.stage_name,
