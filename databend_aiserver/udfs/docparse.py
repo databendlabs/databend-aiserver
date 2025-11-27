@@ -240,11 +240,20 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
         # Output shape:
         # { "chunks": [...], "metadata": {...}, "error_information": [...] }
         resolved_path = resolve_stage_subpath(stage_location, path)
-        root_prefix = ""
-        storage_root = stage_location.storage.get("root") if stage_location.storage else ""
-        if storage_root:
-            root_prefix = storage_root.rstrip("/")
-        full_path = f"{root_prefix}/{resolved_path}" if root_prefix else resolved_path
+        storage = stage_location.storage or {}
+        storage_root = str(storage.get("root", "") or "")
+        bucket = storage.get("bucket") or storage.get("name")
+
+        if storage_root.startswith("s3://"):
+            base = storage_root.rstrip("/")
+            full_path = f"{base}/{resolved_path}"
+        elif bucket:
+            base = f"s3://{bucket}"
+            if storage_root:
+                base = f"{base}/{storage_root.strip('/')}"
+            full_path = f"{base}/{resolved_path}"
+        else:
+            full_path = resolved_path or path
 
         # Keep metadata first for predictable JSON ordering.
         payload: Dict[str, Any] = OrderedDict(
