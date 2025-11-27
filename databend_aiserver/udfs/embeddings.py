@@ -159,7 +159,7 @@ def _resolve_model(model: str) -> Tuple[str, int]:
 
 @udf(
     input_types=["STRING"],
-    result_type="ARRAY(NULLABLE(FLOAT))",
+    result_type="VECTOR(1024)",
     name="ai_embed_1024",
     io_threads=4,
     batch_mode=True,
