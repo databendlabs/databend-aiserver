@@ -34,13 +34,13 @@ def _call_docparse(client: UDFClient, path: str, memory_stage):
     )
     assert len(result) == 1
     payload_raw = result[0]
+    if hasattr(payload_raw, "as_py"):
+        payload_raw = payload_raw.as_py()
     if isinstance(payload_raw, (bytes, bytearray)):
         payload_raw = payload_raw.decode("utf-8")
     if isinstance(payload_raw, str):
-        payload = json.loads(payload_raw)
-    else:
-        payload = payload_raw
-    return payload
+        return json.loads(payload_raw)
+    return payload_raw
 
 
 def _normalize_payload(payload):

@@ -13,10 +13,12 @@
 # limitations under the License.
 
 from databend_aiserver.udfs.docparse import ai_parse_document
+import json
 
 
 def test_docparse_metadata_path_uses_root(memory_stage_with_root):
-    payload = ai_parse_document(memory_stage_with_root, "2206.01062.pdf")
+    raw = ai_parse_document(memory_stage_with_root, "2206.01062.pdf")
+    payload = json.loads(raw) if isinstance(raw, str) else raw
     meta = payload.get("metadata", {})
     assert meta["path"] == "s3://wizardbend/dataset/data/2206.01062.pdf"
     assert meta["filename"] == "2206.01062.pdf"
