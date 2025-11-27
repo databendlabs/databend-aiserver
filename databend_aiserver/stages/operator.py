@@ -77,8 +77,19 @@ def _build_s3_options(storage: Mapping[str, Any]) -> Dict[str, Any]:
     external_id = _first_present(storage, "external_id", "aws_external_id")
     virtual_host_style = storage.get("enable_virtual_host_style")
     disable_loader = storage.get("disable_credential_loader")
+    allow_anonymous = storage.get("allow_anonymous")
 
     options: Dict[str, Any] = {"bucket": bucket}
+    has_explicit_creds = any(
+        val for val in (access_key, secret_key, security_token, master_key, role_arn)
+    )
+
+    # If no credentials are configured, default to anonymous and skip external
+    # credential loaders (e.g., IMDS) to avoid noisy failures on public buckets.
+    if allow_anonymous is None and not has_explicit_creds:
+        allow_anonymous = True
+    if disable_loader is None and not has_explicit_creds:
+        disable_loader = True
 
     if region:
         options["region"] = region
@@ -107,6 +118,9 @@ def _build_s3_options(storage: Mapping[str, Any]) -> Dict[str, Any]:
         options["enable_virtual_host_style"] = "true" if _normalize_bool(virtual_host_style) else "false"
     if disable_loader is not None:
         options["disable_credential_loader"] = "true" if _normalize_bool(disable_loader) else "false"
+    if allow_anonymous is not None:
+        # Allow anonymous access to public buckets when explicitly requested.
+        options["allow_anonymous"] = "true" if _normalize_bool(allow_anonymous) else "false"
 
     return options
 
