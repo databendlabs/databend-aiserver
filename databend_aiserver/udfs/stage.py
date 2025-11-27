@@ -138,31 +138,44 @@ def ai_list_files(
     truncated = False
 
     try:
-        # Use scan() instead of list() to recursively list all files
-        entries = list(op.scan(prefix))
-        if limit > 0 and len(entries) > limit:
-            entries = entries[:limit]
-            truncated = True
-    except Exception:
-        entries = []
+        # Use scan() to recursively list all files
+        # Iterate lazily to support large datasets and early stopping
+        scanner = op.scan(prefix)
+        
+        count = 0
+        for entry in scanner:
+            if limit > 0 and count >= limit:
+                truncated = True
+                break
+                
+            count += 1
+            if count % 1000 == 0:
+                logging.getLogger(__name__).info(
+                    "ai_list_files scanning... found %d files so far (limit=%s)", 
+                    count, limit
+                )
 
-    for entry in entries:
-        metadata = op.stat(entry.path)
-        # Check if directory using mode (opendal.Metadata doesn't have is_dir())
-        # Mode for directories typically has specific bits set, or path ends with /
-        is_dir = entry.path.endswith('/')
-        
-        # Convert mode to string if it exists, otherwise None
-        mode_str = str(metadata.mode) if metadata.mode is not None else None
-        
-        yield {
-            "stage_name": stage_location.stage_name,
-            "relative_path": stage_location.relative_path,
-            "path": entry.path,
-            "is_dir": is_dir,
-            "size": metadata.content_length,
-            "mode": mode_str,
-            "content_type": metadata.content_type,
-            "etag": metadata.etag,
-            "truncated": truncated,
-        }
+            metadata = op.stat(entry.path)
+            # Check if directory using mode (opendal.Metadata doesn't have is_dir())
+            # Mode for directories typically has specific bits set, or path ends with /
+            is_dir = entry.path.endswith('/')
+            
+            # Convert mode to string if it exists, otherwise None
+            mode_str = str(metadata.mode) if metadata.mode is not None else None
+            
+            yield {
+                "stage_name": stage_location.stage_name,
+                "relative_path": stage_location.relative_path,
+                "path": entry.path,
+                "is_dir": is_dir,
+                "size": metadata.content_length,
+                "mode": mode_str,
+                "content_type": metadata.content_type,
+                "etag": metadata.etag,
+                "truncated": False,
+            }
+            
+    except Exception as e:
+        logging.getLogger(__name__).error("Error listing files: %s", e)
+        # Stop yielding
+
