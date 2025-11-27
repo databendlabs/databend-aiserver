@@ -30,7 +30,7 @@ def _call_docparse(client: UDFClient, path: str, memory_stage):
     result = client.call_function(
         "ai_parse_document",
         path,
-        stage_locations=[build_stage_mapping(memory_stage)],
+        stage_locations=[build_stage_mapping(memory_stage, param_name="stage_location")],
     )
     assert len(result) == 1
     payload_raw = result[0]

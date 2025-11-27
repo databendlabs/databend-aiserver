@@ -13,24 +13,24 @@ uv run databend-aiserver --port 8815
 
 | Function | Signature | Purpose | Output |
 | :--- | :--- | :--- | :--- |
-| **ai_list_files** | `(stage, limit)` | List objects in a stage for inspection/sampling. | Table with file details (`path`, `size`, etc.) |
-| **ai_embed_1024** | `(text)` | Generate 1024-dim embeddings (default: Qwen). | `ARRAY(FLOAT)` |
-| **ai_parse_document** | `(stage, path)` | Parse docs (PDF, DOCX, Images, etc.) to Markdown. | `VARIANT` (pages, metadata) |
+| **ai_list_files** | `(stage_location, max_files)` | List objects in a stage for inspection/sampling. | Table with file details (`path`, `size`, etc.) |
+| **ai_embed_1024** | `(text)` | Generate 1024-dim embeddings (default: Qwen). | `ARRAY(FLOAT NULL)` |
+| **ai_parse_document** | `(stage_location, path)` | Parse docs (PDF, DOCX, Images, etc.) to Markdown. | `VARIANT` (pages, metadata) |
 
 ## Usage
 
 ### 1. Register Functions in Databend
 
 ```sql
-CREATE OR REPLACE FUNCTION ai_list_files(STAGE_LOCATION, INT)
-RETURNS TABLE (stage VARCHAR, relative_path VARCHAR, path VARCHAR, is_dir BOOLEAN, size BIGINT, mode VARCHAR, content_type VARCHAR, etag VARCHAR, truncated BOOLEAN)
+CREATE OR REPLACE FUNCTION ai_list_files(stage_location STAGE_LOCATION, max_files INT)
+RETURNS TABLE (stage_name VARCHAR, relative_path VARCHAR, path VARCHAR, is_dir BOOLEAN, size BIGINT, mode VARCHAR, content_type VARCHAR, etag VARCHAR, truncated BOOLEAN)
 LANGUAGE PYTHON HANDLER = 'ai_list_files' ADDRESS = '<your-ai-server-address>';
 
 CREATE OR REPLACE FUNCTION ai_embed_1024(VARCHAR)
-RETURNS ARRAY(FLOAT)
+RETURNS ARRAY(FLOAT NULL)
 LANGUAGE PYTHON HANDLER = 'ai_embed_1024' ADDRESS = '<your-ai-server-address>';
 
-CREATE OR REPLACE FUNCTION ai_parse_document(STAGE_LOCATION, VARCHAR)
+CREATE OR REPLACE FUNCTION ai_parse_document(stage_location STAGE_LOCATION, path VARCHAR)
 RETURNS VARIANT
 LANGUAGE PYTHON HANDLER = 'ai_parse_document' ADDRESS = '<your-ai-server-address>';
 ```

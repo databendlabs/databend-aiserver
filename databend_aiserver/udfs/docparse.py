@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 class _ParserBackend(Protocol):
     name: str
-    def convert(self, stage: StageLocation, path: str) -> ConversionResult:
+    def convert(self, stage_location: StageLocation, path: str) -> ConversionResult:
         ...
 
 
@@ -107,9 +107,9 @@ class _DoclingBackend:
             )
             return DocumentConverter()
 
-    def convert(self, stage: StageLocation, path: str) -> ConversionResult:
+    def convert(self, stage_location: StageLocation, path: str) -> ConversionResult:
         t_start = perf_counter()
-        raw = load_stage_file(stage, path)
+        raw = load_stage_file(stage_location, path)
         suffix = stage_file_suffix(path)
         converter = self._build_converter()
         if DocumentStream is not None:
@@ -164,12 +164,12 @@ def _get_hf_tokenizer(model_name: str) -> HuggingFaceTokenizer:
 
 @udf(
     name="ai_parse_document",
-    stage_refs=["stage"],
+    stage_refs=["stage_location"],
     input_types=["STRING"],
     result_type="VARIANT",
     io_threads=4,
 )
-def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
+def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any]:
     """Parse a document and return Snowflake-compatible layout output.
 
     Simplified semantics:
@@ -187,7 +187,7 @@ def ai_parse_document(stage: StageLocation, path: str) -> Dict[str, Any]:
             runtime.capabilities.device_kind,
         )
         backend = _get_doc_parser_backend()
-        result = backend.convert(stage, path)
+        result = backend.convert(stage_location, path)
         doc = result.document
         markdown = doc.export_to_markdown()
 

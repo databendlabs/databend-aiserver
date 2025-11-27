@@ -17,11 +17,11 @@ from databend_udf.client import UDFClient
 from tests.integration.conftest import build_stage_mapping
 
 
-def _get_listing(running_server, memory_stage, limit=0):
+def _get_listing(running_server, memory_stage, max_files=0):
     client = UDFClient(host="127.0.0.1", port=running_server)
     return client.call_function(
         "ai_list_files",
-        limit,
+        max_files,
         stage_locations=[build_stage_mapping(memory_stage, "stage_location")],
     )
 
@@ -57,7 +57,7 @@ def test_list_stage_files_schema(running_server, memory_stage):
 
 
 def test_list_stage_files_truncation(running_server, memory_stage):
-    rows = _get_listing(running_server, memory_stage, limit=1)
+    rows = _get_listing(running_server, memory_stage, max_files=1)
     assert len(rows) == 1
     # With lazy iteration, we can't easily know if result is truncated for all rows
     # without buffering. Prioritizing performance over this flag.

@@ -31,19 +31,19 @@ from databend_aiserver.stages.operator import (
 
 
 def _collect_stage_files(
-    stage: StageLocation, limit: Optional[int]
+    stage_location: StageLocation, max_files: Optional[int]
 ) -> tuple[List[Dict[str, Any]], bool]:
     """List objects stored under a Databend stage."""
 
     t_start = perf_counter()
 
     try:
-        operator = get_operator(stage)
+        operator = get_operator(stage_location)
     except StageConfigurationError as exc:
         raise ValueError(str(exc)) from exc
 
-    base_prefix = resolve_stage_subpath(stage)
-    max_entries = limit if limit and limit > 0 else None
+    base_prefix = resolve_stage_subpath(stage_location)
+    max_entries = max_files if max_files and max_files > 0 else None
 
     entries: List[Dict[str, Any]] = []
     truncated = False
@@ -94,7 +94,7 @@ def _collect_stage_files(
         "ai_list_files scanned entries=%s truncated=%s stage=%s base=%s duration=%.3fs",
         len(entries),
         truncated,
-        stage.stage_name,
+        stage_location.stage_name,
         base_prefix,
         duration,
     )
@@ -119,19 +119,19 @@ def _collect_stage_files(
     name="ai_list_files",
 )
 def ai_list_files(
-    stage_location: StageLocation, limit: Optional[int]
+    stage_location: StageLocation, max_files: Optional[int]
 ) -> Iterable[Dict[str, Any]]:
     """List objects in a stage."""
 
     logging.getLogger(__name__).info(
-        "ai_list_files start stage=%s relative=%s limit=%s",
+        "ai_list_files start stage=%s relative=%s max_files=%s",
         stage_location.stage_name,
         stage_location.relative_path,
-        limit,
+        max_files,
     )
 
-    if limit is None or limit <= 0:
-        limit = 0
+    if max_files is None or max_files <= 0:
+        max_files = 0
 
     op = get_operator(stage_location)
     prefix = resolve_stage_subpath(stage_location)
@@ -144,15 +144,15 @@ def ai_list_files(
         
         count = 0
         for entry in scanner:
-            if limit > 0 and count >= limit:
+            if max_files > 0 and count >= max_files:
                 truncated = True
                 break
                 
             count += 1
             if count % 1000 == 0:
                 logging.getLogger(__name__).info(
-                    "ai_list_files scanning... found %d files so far (limit=%s)", 
-                    count, limit
+                    "ai_list_files scanning... found %d files so far (max_files=%s)", 
+                    count, max_files
                 )
 
             metadata = op.stat(entry.path)
