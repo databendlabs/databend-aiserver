@@ -23,6 +23,7 @@ import logging
 from pathlib import Path
 
 from databend_udf import udf
+from databend_aiserver.config import DEFAULT_EMBED_MODEL
 
 try:  # pragma: no cover - optional dependency
     import torch
@@ -36,7 +37,7 @@ except ImportError:  # pragma: no cover - transformers must be installed
 
 # Supported embedding families mapped to expected output dimension.
 SUPPORTED_MODELS = [
-    ("qwen", "Qwen/Qwen3-Embedding-0.6B", 1024),
+    ("qwen", DEFAULT_EMBED_MODEL, 1024),
 ]
 
 _ALIAS_TO_ENTRY = {alias.lower(): (model_id, dim) for alias, model_id, dim in SUPPORTED_MODELS}

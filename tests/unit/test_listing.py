@@ -25,12 +25,12 @@ def test_list_stage_files(memory_stage):
     entries, truncated = _collect_stage_files(memory_stage, None)
 
     paths = {item["path"] for item in entries}
-    assert "sample.pdf" in paths
-    assert "sample.docx" in paths
+    assert "2206.01062.pdf" in paths
+    assert "lorem_ipsum.docx" in paths
     assert "subdir/note.txt" in paths
 
-    sample_entry = next(item for item in entries if item["path"] == "sample.pdf")
-    assert sample_entry.get("size", 0) > 0
+    pdf_entry = next(item for item in entries if item["path"] == "2206.01062.pdf")
+    assert pdf_entry.get("size", 0) > 0
     assert truncated is False
 
 

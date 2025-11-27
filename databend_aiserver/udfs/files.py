@@ -68,18 +68,6 @@ def _read_pdf(stage: StageLocation, path: str) -> str:
     return _DEFAULT_JOIN.join(segment for segment in texts if segment)
 
 
-@udf(stage_refs=["stage"], input_types=["STRING"], result_type="STRING", name="ai_read_pdf")
-def ai_read_pdf(stage: StageLocation, path: str) -> str:
-    """SQL definition:
-
-    ```sql
-    CREATE FUNCTION ai_read_pdf(stage STAGE_LOCATION, path STRING)
-        RETURNS STRING;
-    ```
-    """
-    return _read_pdf(stage, path)
-
-
 def _read_docx(stage: StageLocation, path: str) -> str:
     if not path:
         raise ValueError("DOCX reader requires a non-empty path")
@@ -90,14 +78,3 @@ def _read_docx(stage: StageLocation, path: str) -> str:
     paragraphs = [paragraph.text.strip() for paragraph in document.paragraphs if paragraph.text]
     return _DEFAULT_JOIN.join(paragraphs)
 
-
-@udf(stage_refs=["stage"], input_types=["STRING"], result_type="STRING", name="ai_read_docx")
-def ai_read_docx(stage: StageLocation, path: str) -> str:
-    """SQL definition:
-
-    ```sql
-    CREATE FUNCTION ai_read_docx(stage STAGE_LOCATION, path STRING)
-        RETURNS STRING;
-    ```
-    """
-    return _read_docx(stage, path)

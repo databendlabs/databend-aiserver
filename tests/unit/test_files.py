@@ -12,18 +12,107 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
+import json
+from pathlib import Path
+
 from databend_aiserver.udfs.files import _read_docx, _read_pdf
+from databend_aiserver.udfs.docparse import ai_parse_document
+from databend_aiserver.stages.operator import get_operator, resolve_stage_subpath
+from pypdf import PdfReader, PdfWriter
+from docx import Document
+from docx.enum.text import WD_BREAK
+
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+PDF_SRC = DATA_DIR / "2206.01062.pdf"
+DOCX_SRC = DATA_DIR / "lorem_ipsum.docx"
+
+
+def _write_multipage_pdf(stage, filename: str = "multi.pdf"):
+    base = PDF_SRC.read_bytes()
+    reader = PdfReader(io.BytesIO(base))
+    writer = PdfWriter()
+    for _ in range(2):
+        for page in reader.pages:
+            writer.add_page(page)
+    buf = io.BytesIO()
+    writer.write(buf)
+    operator = get_operator(stage)
+    operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
+
+
+def _write_multipage_docx(stage, filename: str = "multi.docx"):
+    doc = Document(DOCX_SRC)
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    doc.add_paragraph("Second page - appended for test.")
+    buf = io.BytesIO()
+    doc.save(buf)
+    operator = get_operator(stage)
+    operator.write(resolve_stage_subpath(stage, filename), buf.getvalue())
 
 
 def test_read_pdf(memory_stage):
-    result = _read_pdf(memory_stage, "sample.pdf")
+    result = _read_pdf(memory_stage, "2206.01062.pdf")
 
     assert isinstance(result, str)
-    assert "dummy" in result.replace(" ", "").lower()
+    # Non-empty content from sample paper
+    assert len(result.strip()) > 100
 
 
 def test_read_docx(memory_stage):
-    result = _read_docx(memory_stage, "sample.docx")
+    result = _read_docx(memory_stage, "lorem_ipsum.docx")
 
     assert isinstance(result, str)
-    assert "This is a short paragraph" in result
+    assert "Lorem ipsum" in result
+
+
+def test_parse_document(memory_stage):
+    _write_multipage_pdf(memory_stage, "multi.pdf")
+    result = ai_parse_document(memory_stage, "multi.pdf")
+
+    assert isinstance(result, dict)
+    pages = [
+        {"index": p["index"], "content": "<PAGE_CONTENT>"}
+        for p in (result.get("pages") or [])
+    ]
+    page_count = len(pages)
+
+    normalized = {
+        "pages": pages,
+        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "errorInformation": result.get("errorInformation"),
+    }
+    expected = {
+        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
+        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "errorInformation": None,
+    }
+    actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+    assert actual_str == expected_str
+
+
+def test_parse_document_docx(memory_stage):
+    _write_multipage_docx(memory_stage, "multi.docx")
+    result = ai_parse_document(memory_stage, "multi.docx")
+
+    assert isinstance(result, dict)
+    pages = [
+        {"index": p["index"], "content": "<PAGE_CONTENT>"}
+        for p in (result.get("pages") or [])
+    ]
+    page_count = len(pages)
+
+    normalized = {
+        "pages": pages,
+        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "errorInformation": result.get("errorInformation"),
+    }
+    expected = {
+        "pages": [{"index": i, "content": "<PAGE_CONTENT>"} for i in range(page_count)],
+        "metadata": {"pageCount": "<PAGECOUNT>"},
+        "errorInformation": None,
+    }
+    actual_str = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+    assert actual_str == expected_str

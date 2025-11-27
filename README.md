@@ -5,9 +5,8 @@ AI-ready UDFs, seamlessly fusing object storage, embeddings, and SQL pipelines.
 
 ## UDFs (prefix `ai_`)
 - `list_files(stage, limit)` – UDTF that emits one row per object in external stages.
-- `read_pdf(stage, path)` – extract PDF text.
-- `read_docx(stage, path)` – extract DOCX text.
 - `embed_1024(text)` – 1024-dim embeddings (batch-friendly, default model qwen).
+- `parse_document(stage, path)` – parse a document via Docling and return Markdown layout as VARIANT.
 
 ## Quickstart
 ```bash
@@ -27,9 +26,8 @@ CREATE STAGE docs_stage
   CONNECTION = (CONNECTION_NAME = 'my_s3_connection');
 
 SELECT * FROM ai_list_files(@docs_stage, 50);
-SELECT ai_read_pdf(@docs_stage, 'reports/q1.pdf');
-SELECT ai_read_docx(@docs_stage, 'reports/q1.docx');
 SELECT ai_embed_1024(doc_body) FROM docs_tbl;
+SELECT ai_parse_document(@docs_stage, 'reports/q1.pdf');
 ```
 
 `ai_list_files` returns columns: `stage`, `relative_path`, `path`, `is_dir`,
