@@ -21,13 +21,13 @@ from time import perf_counter
 from typing import Any, Dict, Iterable, List, Optional
 
 from databend_udf import StageLocation, udf
-from opendal import exceptions as opendal_exceptions
-
 from databend_aiserver.stages.operator import (
     StageConfigurationError,
     get_operator,
     resolve_stage_subpath,
+    resolve_storage_uri,
 )
+from opendal import exceptions as opendal_exceptions
 
 
 def _format_last_modified(value: Any) -> Optional[str]:
@@ -119,14 +119,12 @@ def _collect_stage_files(
     input_types=["INT"],
     result_type=[
         ("stage_name", "VARCHAR"),
-        ("relative_path", "VARCHAR"),
         ("path", "VARCHAR"),
-        ("is_dir", "BOOLEAN"),
-        ("size", "BIGINT"),
-        ("mode", "VARCHAR"),
-        ("content_type", "VARCHAR"),
+        ("fullpath", "VARCHAR"),
+        ("size", "UINT64"),
+        ("last_modified", "VARCHAR"),
         ("etag", "VARCHAR"),
-        ("last_modified", "TIMESTAMP"),
+        ("content_type", "VARCHAR"),
     ],
     name="ai_list_files",
 )
@@ -170,22 +168,19 @@ def ai_list_files(
             metadata = op.stat(entry.path)
             # Check if directory using mode (opendal.Metadata doesn't have is_dir())
             # Mode for directories typically has specific bits set, or path ends with /
-            is_dir = entry.path.endswith('/')
             
             # Convert mode to string if it exists, otherwise None
-            mode_str = str(metadata.mode) if metadata.mode is not None else None
-            last_modified = _format_last_modified(getattr(metadata, "last_modified", None))
             
             yield {
                 "stage_name": stage_location.stage_name,
-                "relative_path": stage_location.relative_path,
                 "path": entry.path,
-                "is_dir": is_dir,
+                "fullpath": resolve_storage_uri(stage_location, entry.path),
                 "size": metadata.content_length,
-                "mode": mode_str,
-                "content_type": metadata.content_type,
+                "last_modified": _format_last_modified(
+                    getattr(metadata, "last_modified", None)
+                ),
                 "etag": metadata.etag,
-                "last_modified": last_modified,
+                "content_type": metadata.content_type,
             }
             
     except Exception as e:

@@ -23,7 +23,7 @@ uv run databend-aiserver --port 8815
 
 ```sql
 CREATE OR REPLACE FUNCTION ai_list_files(stage_location STAGE_LOCATION, max_files INT)
-RETURNS TABLE (stage_name VARCHAR, relative_path VARCHAR, path VARCHAR, is_dir BOOLEAN, size BIGINT, mode VARCHAR, content_type VARCHAR, etag VARCHAR, truncated BOOLEAN)
+RETURNS TABLE (stage_name VARCHAR, path VARCHAR, fullpath VARCHAR, size UINT64, last_modified VARCHAR, etag VARCHAR, content_type VARCHAR)
 LANGUAGE PYTHON HANDLER = 'ai_list_files' ADDRESS = '<your-ai-server-address>';
 
 CREATE OR REPLACE FUNCTION ai_embed_1024(text VARCHAR)

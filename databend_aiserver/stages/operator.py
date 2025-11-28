@@ -134,7 +134,19 @@ def _build_memory_options(_: Mapping[str, Any]) -> Dict[str, Any]:
     return {}
 
 
-_STORAGE_BUILDERS: Dict[str, Any] = {"s3": _build_s3_options, "memory": _build_memory_options}
+def _build_fs_options(storage: Mapping[str, Any]) -> Dict[str, Any]:
+    # Useful for local testing with real files.
+    root = _first_present(storage, "root")
+    if not root:
+        raise StageConfigurationError("FS stage is missing root configuration")
+    return {"root": root}
+
+
+_STORAGE_BUILDERS: Dict[str, Any] = {
+    "s3": _build_s3_options,
+    "memory": _build_memory_options,
+    "fs": _build_fs_options,
+}
 
 
 def _cache_key(stage: StageLocation) -> str:
@@ -251,23 +263,30 @@ def stage_file_suffix(path: str) -> str:
     return Path(path).suffix or ".bin"
 
 
-def resolve_full_path(stage_location: StageLocation, path: str) -> str:
+def resolve_storage_uri(stage_location: StageLocation, path: str) -> str:
     """
-    Resolve the full path (URI) of a file in the stage.
-    Useful for returning the full S3 path in metadata.
+    Resolve the full URI of a path relative to the storage root.
     """
-    resolved_path = resolve_stage_subpath(stage_location, path)
     storage = stage_location.storage or {}
     storage_root = str(storage.get("root", "") or "")
     bucket = storage.get("bucket") or storage.get("name")
 
     if storage_root.startswith("s3://"):
         base = storage_root.rstrip("/")
-        return f"{base}/{resolved_path}"
+        return f"{base}/{path}"
     elif bucket:
         base = f"s3://{bucket}"
         if storage_root:
             base = f"{base}/{storage_root.strip('/')}"
-        return f"{base}/{resolved_path}"
+        return f"{base}/{path}"
     
-    return resolved_path or path
+    return path
+
+
+def resolve_full_path(stage_location: StageLocation, path: str) -> str:
+    """
+    Resolve the full path (URI) of a file in the stage.
+    Useful for returning the full S3 path in metadata.
+    """
+    resolved_path = resolve_stage_subpath(stage_location, path)
+    return resolve_storage_uri(stage_location, resolved_path)
