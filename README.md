@@ -22,15 +22,15 @@ uv run databend-aiserver --port 8815
 ### 1. Register Functions in Databend
 
 ```sql
-CREATE OR REPLACE FUNCTION ai_list_files(stage_location STAGE_LOCATION, max_files INT)
-RETURNS TABLE (stage_name VARCHAR, path VARCHAR, fullpath VARCHAR, size UINT64, last_modified VARCHAR, etag VARCHAR, content_type VARCHAR)
+CREATE OR REPLACE FUNCTION ai_list_files(stage_location STAGE_LOCATION, pattern VARCHAR, max_files INT)
+RETURNS TABLE (stage_name VARCHAR, path VARCHAR, uri VARCHAR, size UINT64, last_modified VARCHAR, etag VARCHAR, content_type VARCHAR)
 LANGUAGE PYTHON HANDLER = 'ai_list_files' ADDRESS = '<your-ai-server-address>';
 
 CREATE OR REPLACE FUNCTION ai_embed_1024(text VARCHAR)
 RETURNS VECTOR(1024)
 LANGUAGE PYTHON HANDLER = 'ai_embed_1024' ADDRESS = '<your-ai-server-address>';
 
-CREATE OR REPLACE FUNCTION ai_parse_document(stage_location STAGE_LOCATION, path VARCHAR)
+CREATE OR REPLACE FUNCTION ai_parse_document(stage_location STAGE_LOCATION, file_path VARCHAR)
 RETURNS VARIANT
 LANGUAGE PYTHON HANDLER = 'ai_parse_document' ADDRESS = '<your-ai-server-address>';
 ```

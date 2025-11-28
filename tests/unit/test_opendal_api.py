@@ -31,16 +31,16 @@ def test_opendal_entry_has_path_attribute():
     assert entry.path == "test.txt"
 
 
-def test_opendal_entry_no_metadata_attribute():
-    """Verify Entry objects don't have metadata attribute (API changed)."""
+def test_opendal_entry_has_metadata_attribute():
+    """Verify Entry objects have metadata attribute."""
     op = Operator("memory")
     op.write("test.txt", b"hello")
     
     entries = list(op.list(""))
     entry = entries[0]
     
-    # Entry should NOT have metadata attribute
-    assert not hasattr(entry, "metadata")
+    # Entry SHOULD have metadata attribute in newer opendal
+    assert hasattr(entry, "metadata")
 
 
 def test_opendal_stat_returns_metadata():
@@ -60,15 +60,15 @@ def test_opendal_stat_returns_metadata():
     assert metadata.content_length == 11  # len("hello world")
 
 
-def test_opendal_metadata_no_is_dir_method():
-    """Verify Metadata doesn't have is_dir() method."""
+def test_opendal_metadata_has_is_dir_method():
+    """Verify Metadata has is_dir() method."""
     op = Operator("memory")
     op.write("test.txt", b"hello")
     
     metadata = op.stat("test.txt")
     
-    # Metadata should NOT have is_dir() method
-    assert not hasattr(metadata, "is_dir")
+    # Metadata SHOULD have is_dir() method in newer opendal
+    assert hasattr(metadata, "is_dir")
 
 
 def test_opendal_directory_detection_via_path():

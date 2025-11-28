@@ -218,8 +218,8 @@ def _chunk_document(doc: Any) -> Tuple[List[Dict[str, Any]], int]:
 
 
 def _format_response(
-    path: str,
-    full_path: str,
+    file_path: str,
+    uri: str,
     pages: List[Dict[str, Any]],
     file_size: int,
     timings: Dict[str, float],
@@ -232,9 +232,9 @@ def _format_response(
         "chunk_size": DEFAULT_CHUNK_SIZE,
         "duration_ms": timings.get("total", 0.0),
         "file_size": file_size,
-        "filename": Path(path).name,
+        "filename": Path(file_path).name,
         "num_tokens": num_tokens,
-        "path": full_path,
+        "uri": uri,
         "timings_ms": timings,
         "version": 1,
     }
@@ -257,27 +257,27 @@ def _format_response(
     result_type="VARIANT",
     io_threads=4,
 )
-def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any]:
+def ai_parse_document(stage_location: StageLocation, file_path: str) -> Dict[str, Any]:
     """Parse a document and return Snowflake-compatible layout output."""
     try:
         t_total_ns = perf_counter_ns()
         runtime = get_runtime()
         logger.info(
             "ai_parse_document start path=%s runtime_device=%s kind=%s",
-            path,
+            file_path,
             runtime.capabilities.preferred_device,
             runtime.capabilities.device_kind,
         )
         
         backend = _get_doc_parser_backend()
         t_convert_start_ns = perf_counter_ns()
-        result, file_size = backend.convert(stage_location, path)
+        result, file_size = backend.convert(stage_location, file_path)
         t_convert_end_ns = perf_counter_ns()
 
         pages, num_tokens = _chunk_document(result.document)
         t_chunk_end_ns = perf_counter_ns()
 
-        full_path = resolve_full_path(stage_location, path)
+        uri = resolve_full_path(stage_location, file_path)
         
         timings = {
             "convert": (t_convert_end_ns - t_convert_start_ns) / 1_000_000.0,
@@ -286,12 +286,12 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
         }
 
         payload = _format_response(
-            path, full_path, pages, file_size, timings, num_tokens
+            file_path, uri, pages, file_size, timings, num_tokens
         )
         
         logger.info(
             "ai_parse_document path=%s backend=%s chunks=%s duration_ms=%.1f",
-            path,
+            file_path,
             getattr(backend, "name", "unknown"),
             len(pages),
             timings["total"],
@@ -301,8 +301,8 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
     except Exception as exc:  # pragma: no cover
         return {
             "metadata": {
-                "path": path,
-                "filename": Path(path).name,
+                "file_path": file_path,
+                "filename": Path(file_path).name,
             },
             "chunks": [],
             "error_information": [{"message": str(exc), "type": exc.__class__.__name__}],

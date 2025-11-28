@@ -14,16 +14,23 @@
 
 import pytest
 from databend_udf.client import UDFClient
+from typing import List, Dict, Any
 
-from tests.integration.conftest import build_stage_mapping
+from tests.integration.conftest import build_stage_mapping, StageLocation
 
 
-def _get_listing(running_server, memory_stage, max_files=0):
-    client = UDFClient(host="127.0.0.1", port=running_server)
+def _get_listing(
+    server_port: int, stage: StageLocation, pattern: str = None, max_files: int = 0
+) -> List[Dict[str, Any]]:
+    client = UDFClient(host="127.0.0.1", port=server_port)
+    
+    # ai_list_files(stage_location, pattern, max_files)
+    # UDFClient.call_function accepts *args, not RecordBatch
     return client.call_function(
         "ai_list_files",
+        pattern,
         max_files,
-        stage_locations=[build_stage_mapping(memory_stage, "stage_location")],
+        stage_locations=[build_stage_mapping(stage, "stage_location")],
     )
 
 
@@ -43,10 +50,9 @@ def test_list_stage_files_content(running_server, memory_stage):
 def test_list_stage_files_metadata(running_server, memory_stage):
     rows = _get_listing(running_server, memory_stage)
     assert {row["stage_name"] for row in rows} == {memory_stage.stage_name}
-    # Check for fullpath instead of relative_path
-    # Memory stage fullpath might be just the path if no bucket/root
-    assert all("fullpath" in row for row in rows)
-    assert all(row["fullpath"].endswith(row["path"]) for row in rows)
+    # Memory stage uri might be just the path if no bucket/root
+    assert all("uri" in row for row in rows)
+    assert all(row["uri"].endswith(row["path"]) for row in rows)
     # Check that last_modified key exists (value might be None for memory backend)
     assert all("last_modified" in row for row in rows)
 
@@ -55,18 +61,18 @@ def test_list_stage_files_schema(running_server, memory_stage):
     rows = _get_listing(running_server, memory_stage)
     for row in rows:
         assert "path" in row
-        assert "fullpath" in row
+        assert "uri" in row
         assert "size" in row
         assert "last_modified" in row
         assert "etag" in row  # May be None
         assert "content_type" in row  # May be None
-        
-        # Verify order implicitly by checking keys list if needed, 
+
+        # Verify order implicitly by checking keys list if needed,
         # but for now just existence is enough as dicts are ordered in Python 3.7+
         keys = list(row.keys())
-        # Expected keys: stage_name, path, fullpath, size, last_modified, etag, content_type
+        # Expected keys: stage_name, path, uri, size, last_modified, etag, content_type
         # Note: stage_name is added by _get_listing or the UDF logic, let's check the core ones
-        assert keys.index("path") < keys.index("fullpath")
+        assert keys.index("path") < keys.index("uri")
         assert keys.index("last_modified") < keys.index("etag")
 
 
@@ -74,3 +80,21 @@ def test_list_stage_files_truncation(running_server, memory_stage):
     rows = _get_listing(running_server, memory_stage, max_files=1)
     assert len(rows) == 1
     assert "last_modified" in rows[0]
+
+
+def test_list_stage_files_pattern(running_server, memory_stage):
+    # Test pattern matching - patterns match against full path (e.g., "data/file.pdf")
+    rows = _get_listing(running_server, memory_stage, pattern="data/*.pdf")
+    assert len(rows) == 1
+    assert rows[0]["path"].endswith(".pdf")
+
+    rows = _get_listing(running_server, memory_stage, pattern="data/*.docx")
+    assert len(rows) == 1
+    assert rows[0]["path"].endswith(".docx")
+
+    rows = _get_listing(running_server, memory_stage, pattern="data/subdir/*")
+    # Matches data/subdir/ and data/subdir/note.txt
+    assert len(rows) == 2
+    paths = {r["path"] for r in rows}
+    assert "data/subdir/note.txt" in paths
+    assert "data/subdir/" in paths
