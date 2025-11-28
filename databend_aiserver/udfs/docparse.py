@@ -20,7 +20,7 @@ import os
 import tempfile
 from pathlib import Path
 from time import perf_counter, perf_counter_ns
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Sequence
 
 from databend_udf import StageLocation, udf
 from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -39,6 +39,7 @@ from databend_aiserver.stages.operator import (
     load_stage_file,
     stage_file_suffix,
     resolve_stage_subpath,
+    resolve_full_path,
 )
 from databend_aiserver.config import DEFAULT_EMBED_MODEL, DEFAULT_CHUNK_SIZE
 
@@ -153,41 +154,67 @@ def _get_hf_tokenizer(model_name: str) -> HuggingFaceTokenizer:
     return _TOKENIZER_CACHE[model_name]
 
 
-def _resolve_full_path(stage_location: StageLocation, path: str) -> str:
-    resolved_path = resolve_stage_subpath(stage_location, path)
-    storage = stage_location.storage or {}
-    storage_root = str(storage.get("root", "") or "")
-    bucket = storage.get("bucket") or storage.get("name")
-
-    if storage_root.startswith("s3://"):
-        base = storage_root.rstrip("/")
-        return f"{base}/{resolved_path}"
-    elif bucket:
-        base = f"s3://{bucket}"
-        if storage_root:
-            base = f"{base}/{storage_root.strip('/')}"
-        return f"{base}/{resolved_path}"
-    
-    return resolved_path or path
 
 
-def _chunk_document(doc: Any) -> Tuple[List[Dict[str, Any]], bool]:
-    """Chunk the document and return pages/chunks and a fallback flag."""
-    markdown = doc.export_to_markdown()
+
+def _chunk_document(doc: Any) -> Tuple[List[Dict[str, Any]], int]:
+    """Chunk the document and return pages/chunks and total tokens."""
     tokenizer = _get_hf_tokenizer(DEFAULT_EMBED_MODEL)
     chunker = HybridChunker(tokenizer=tokenizer)
 
-    try:
-        chunks = list(chunker.chunk(dl_doc=doc))
-        if not chunks:
-            return [{"index": 0, "content": markdown}], True
-            
-        return [
-            {"index": idx, "content": chunker.contextualize(chunk)}
-            for idx, chunk in enumerate(chunks)
-        ], False
-    except Exception:
-        return [{"index": 0, "content": markdown}], True
+    chunks = list(chunker.chunk(dl_doc=doc))
+    if not chunks:
+        raise ValueError("HybridChunker returned no chunks")
+        
+    logger.info(
+        "HybridChunker produced %d chunks. Merging to fit %d tokens...",
+        len(chunks),
+        DEFAULT_CHUNK_SIZE,
+    )
+
+    merged_chunks = []
+    current_chunk_text = ""
+    current_tokens = 0
+    total_tokens = 0
+    delimiter = "\n\n"
+    delimiter_tokens = tokenizer.count_tokens(delimiter)
+
+    for chunk in chunks:
+        text = chunker.contextualize(chunk)
+        text_tokens = tokenizer.count_tokens(text)
+
+        if current_tokens + delimiter_tokens + text_tokens > DEFAULT_CHUNK_SIZE and current_chunk_text:
+            merged_chunks.append({
+                "index": len(merged_chunks),
+                "content": current_chunk_text,
+                "tokens": current_tokens,
+            })
+            total_tokens += current_tokens
+            current_chunk_text = text
+            current_tokens = text_tokens
+        else:
+            if current_chunk_text:
+                current_chunk_text += delimiter + text
+                current_tokens += delimiter_tokens + text_tokens
+            else:
+                current_chunk_text = text
+                current_tokens = text_tokens
+    
+    if current_chunk_text:
+        merged_chunks.append({
+            "index": len(merged_chunks),
+            "content": current_chunk_text,
+            "tokens": current_tokens,
+        })
+        total_tokens += current_tokens
+
+    logger.info(
+        "Merged chunks: %d -> %d",
+        len(chunks),
+        len(merged_chunks),
+    )
+
+    return merged_chunks, total_tokens
 
 
 def _format_response(
@@ -196,31 +223,31 @@ def _format_response(
     pages: List[Dict[str, Any]],
     file_size: int,
     timings: Dict[str, float],
-    fallback: bool
+    num_tokens: int,
+    error: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
-    duration_ms = timings["total"]
-    payload: Dict[str, Any] = {
-        "metadata": {
-            "chunk_count": len(pages),
-            "chunk_size": DEFAULT_CHUNK_SIZE,
-            "duration_ms": duration_ms,
-            "file_size": file_size,
-            "filename": Path(path).name,
-            "path": full_path,
-            "timings_ms": timings,
-            "version": 1,
-        },
+    """Format the response with a fixed template."""
+    metadata = {
+        "chunk_count": len(pages),
+        "chunk_size": DEFAULT_CHUNK_SIZE,
+        "duration_ms": timings.get("total", 0.0),
+        "file_size": file_size,
+        "filename": Path(path).name,
+        "num_tokens": num_tokens,
+        "path": full_path,
+        "timings_ms": timings,
+        "version": 1,
+    }
+
+    response = {
+        "metadata": metadata,
         "chunks": pages,
     }
-    
-    if fallback:
-        payload["error_information"] = [
-            {
-                "type": "ChunkingFallback",
-                "message": "chunker failed or returned empty; returned full markdown instead",
-            }
-        ]
-    return payload
+
+    if error:
+        response["error_information"] = [error]
+
+    return response
 
 
 @udf(
@@ -247,10 +274,10 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
         result, file_size = backend.convert(stage_location, path)
         t_convert_end_ns = perf_counter_ns()
 
-        pages, fallback = _chunk_document(result.document)
+        pages, num_tokens = _chunk_document(result.document)
         t_chunk_end_ns = perf_counter_ns()
 
-        full_path = _resolve_full_path(stage_location, path)
+        full_path = resolve_full_path(stage_location, path)
         
         timings = {
             "convert": (t_convert_end_ns - t_convert_start_ns) / 1_000_000.0,
@@ -258,14 +285,15 @@ def ai_parse_document(stage_location: StageLocation, path: str) -> Dict[str, Any
             "total": (t_chunk_end_ns - t_total_ns) / 1_000_000.0,
         }
 
-        payload = _format_response(path, full_path, pages, file_size, timings, fallback)
+        payload = _format_response(
+            path, full_path, pages, file_size, timings, num_tokens
+        )
         
         logger.info(
-            "ai_parse_document path=%s backend=%s chunks=%s fallback=%s duration_ms=%.1f",
+            "ai_parse_document path=%s backend=%s chunks=%s duration_ms=%.1f",
             path,
             getattr(backend, "name", "unknown"),
             len(pages),
-            fallback,
             timings["total"],
         )
         return payload

@@ -249,3 +249,25 @@ def load_stage_file(stage: StageLocation, path: str, *, on_missing: Callable[[st
 
 def stage_file_suffix(path: str) -> str:
     return Path(path).suffix or ".bin"
+
+
+def resolve_full_path(stage_location: StageLocation, path: str) -> str:
+    """
+    Resolve the full path (URI) of a file in the stage.
+    Useful for returning the full S3 path in metadata.
+    """
+    resolved_path = resolve_stage_subpath(stage_location, path)
+    storage = stage_location.storage or {}
+    storage_root = str(storage.get("root", "") or "")
+    bucket = storage.get("bucket") or storage.get("name")
+
+    if storage_root.startswith("s3://"):
+        base = storage_root.rstrip("/")
+        return f"{base}/{resolved_path}"
+    elif bucket:
+        base = f"s3://{bucket}"
+        if storage_root:
+            base = f"{base}/{storage_root.strip('/')}"
+        return f"{base}/{resolved_path}"
+    
+    return resolved_path or path
