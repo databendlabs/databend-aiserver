@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 from time import perf_counter
 from typing import Any, Dict, Iterable, List, Optional
@@ -116,11 +117,11 @@ def _collect_stage_files(
 
 @udf(
     stage_refs=["stage_location"],
-    input_types=["INT"],
+    input_types=["VARCHAR", "INT"],
     result_type=[
         ("stage_name", "VARCHAR"),
         ("path", "VARCHAR"),
-        ("fullpath", "VARCHAR"),
+        ("uri", "VARCHAR"),
         ("size", "UINT64"),
         ("last_modified", "VARCHAR"),
         ("etag", "VARCHAR"),
@@ -129,14 +130,15 @@ def _collect_stage_files(
     name="ai_list_files",
 )
 def ai_list_files(
-    stage_location: StageLocation, max_files: Optional[int]
+    stage_location: StageLocation, pattern: Optional[str], max_files: Optional[int]
 ) -> Iterable[Dict[str, Any]]:
     """List objects in a stage."""
 
     logging.getLogger(__name__).info(
-        "ai_list_files start stage=%s relative=%s max_files=%s",
+        "ai_list_files start stage=%s relative=%s pattern=%s max_files=%s",
         stage_location.stage_name,
         stage_location.relative_path,
+        pattern,
         max_files,
     )
 
@@ -154,6 +156,9 @@ def ai_list_files(
         
         count = 0
         for entry in scanner:
+            if pattern and not fnmatch.fnmatch(entry.path, pattern):
+                continue
+
             if max_files > 0 and count >= max_files:
                 truncated = True
                 break
@@ -174,7 +179,7 @@ def ai_list_files(
             yield {
                 "stage_name": stage_location.stage_name,
                 "path": entry.path,
-                "fullpath": resolve_storage_uri(stage_location, entry.path),
+                "uri": resolve_storage_uri(stage_location, entry.path),
                 "size": metadata.content_length,
                 "last_modified": _format_last_modified(
                     getattr(metadata, "last_modified", None)

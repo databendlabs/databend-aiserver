@@ -49,7 +49,7 @@ def _normalize_payload(payload):
     return {
         "chunk_count": metadata.get("chunk_count"),
         "chunk_len": len(chunks),
-        "has_path": "path" in metadata,
+        "has_uri": "uri" in metadata,
         "has_filename": "filename" in metadata,
         "has_file_size": "file_size" in metadata,
         "has_duration": "duration_ms" in metadata,
@@ -63,7 +63,7 @@ def test_docparse_pdf_structure(running_server, memory_stage):
     
     norm = _normalize_payload(payload)
     assert norm["chunk_count"] == norm["chunk_len"]
-    assert norm["has_path"]
+    assert norm["has_uri"]
     assert norm["has_filename"]
     assert norm["has_file_size"]
     assert norm["has_duration"]
@@ -84,7 +84,7 @@ def test_docparse_docx_structure(running_server, memory_stage):
     
     norm = _normalize_payload(payload)
     assert norm["chunk_count"] == norm["chunk_len"]
-    assert norm["has_path"]
+    assert norm["has_uri"]
     assert norm["has_filename"]
     assert norm["has_file_size"]
     assert norm["has_duration"]
